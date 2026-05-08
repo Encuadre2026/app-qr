@@ -375,12 +375,24 @@ body {
 #qr-reader {
   width: 100%;
   height: 100%;
+  background: #000 !important;
 }
 
 #qr-reader video {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
+}
+
+/* Force black on all html5-qrcode internal elements */
+#qr-reader > div {
+  background: #000 !important;
+  border: none !important;
+}
+
+#qr-reader canvas,
+#qr-reader img {
+  background: #000 !important;
 }
 
 /* Hide default html5-qrcode UI */
