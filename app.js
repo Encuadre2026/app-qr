@@ -140,10 +140,7 @@
     $panelScanner.classList.toggle('active', isScanner);
     $panelSearch.classList.toggle('active', !isScanner);
 
-    if (isScanner) {
-      startScanner();
-    } else {
-      stopScanner();
+    if (!isScanner) {
       setTimeout(function () { $searchInput.focus(); }, 200);
     }
   }
