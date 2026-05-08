@@ -375,75 +375,25 @@ body {
 #qr-reader {
   width: 100%;
   height: 100%;
-  background: #000 !important;
-  overflow: hidden;
 }
 
-#qr-reader video {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-  position: relative;
-  z-index: 1;
-}
-
-/* Hide shading region borders from html5-qrcode */
-#qr-reader__scan_region > img,
-#qr-reader__scan_region > br {
-  display: none !important;
-}
-
-/* Hide default html5-qrcode UI */
-#qr-reader__scan_region {
-  min-height: unset !important;
-}
-#qr-reader__dashboard {
-  display: none !important;
-}
-#qr-reader__header_message {
-  display: none !important;
-}
+/* Hide default html5-qrcode UI elements */
+#qr-reader__dashboard,
+#qr-reader__header_message,
 #qr-reader img[alt="Info icon"],
 #qr-reader__camera_permission_button {
   display: none !important;
 }
 
-.scanner-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
+/* Theme the scan region shading */
+#qr-reader__scan_region {
+  min-height: unset !important;
 }
 
-.scanner-frame {
-  width: 220px;
-  height: 220px;
-  border: 2px solid rgba(244,208,63,0.4);
-  border-radius: 24px;
-  box-shadow: 0 0 0 4000px rgba(0,0,0,0.45),
-              inset 0 0 30px rgba(244,208,63,0.05);
-  position: relative;
-}
-
-.scanner-frame::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--gold), transparent);
-  animation: scanLine 2.5s ease-in-out infinite;
-}
-
-@keyframes scanLine {
-  0% { top: -2px; opacity: 1; }
-  50% { top: calc(100% + 2px); opacity: 0.6; }
-  50.01% { opacity: 0; }
-  100% { top: -2px; opacity: 0; }
+/* Style the qr shading region border */
+#qr-shaded-region > div {
+  border-color: var(--gold) !important;
+  opacity: 0.6;
 }
 
 .scanner-hint {
