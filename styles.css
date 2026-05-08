@@ -370,24 +370,40 @@ body {
   flex: 1;
   background: #000;
   overflow: hidden;
+  min-height: 300px;
 }
 
 #qr-reader {
   width: 100%;
   height: 100%;
+  min-height: 300px;
+}
+
+/* Force video to fill the container and be visible */
+#qr-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
 }
 
 /* Hide default html5-qrcode UI elements */
-#qr-reader__dashboard,
-#qr-reader__header_message,
-#qr-reader img[alt="Info icon"],
-#qr-reader__camera_permission_button {
+#qr-reader__dashboard {
   display: none !important;
 }
 
-/* Theme the scan region shading */
+#qr-reader__header_message {
+  display: none !important;
+}
+
+/* Make scan region fill available space */
 #qr-reader__scan_region {
-  min-height: unset !important;
+  min-height: 280px !important;
+  position: relative !important;
+}
+
+#qr-reader__scan_region video {
+  display: block !important;
 }
 
 /* Style the qr shading region border */
