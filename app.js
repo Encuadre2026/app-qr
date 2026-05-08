@@ -181,10 +181,18 @@
       try { qrScanner.clear(); } catch(e) {}
     }
 
-    qrScanner = new Html5Qrcode('qr-reader');
+    qrScanner = new Html5Qrcode('qr-reader', {
+      formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ],
+      useBarCodeDetectorIfSupported: true,
+      verbose: false
+    });
     var config = {
-      fps: 10,
-      qrbox: { width: 200, height: 200 },
+      fps: 25,
+      qrbox: function (viewfinderW, viewfinderH) {
+        var size = Math.min(viewfinderW, viewfinderH) * 0.85;
+        return { width: Math.floor(size), height: Math.floor(size) };
+      },
+      disableFlip: false,
       showTorchButtonIfSupported: false,
       showZoomSliderIfSupported: false
     };
