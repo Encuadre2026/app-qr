@@ -115,7 +115,7 @@
   function showApp() {
     $pinScreen.classList.remove('active');
     $mainApp.classList.add('active');
-    startScanner();
+    // No auto-start scanner; show button and wait for user tap
     syncOfflineQueue();
     updateOfflineBadge();
   }
@@ -166,9 +166,15 @@
       return;
     }
 
+    // Check basic camera support
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      $scannerHint.textContent = 'Tu navegador no soporta cámara. Prueba con Chrome.';
+      return;
+    }
+
     // Hide prompt, show scanner
     $cameraPrompt.classList.add('hidden');
-    $scannerHint.textContent = 'Iniciando cámara...';
+    $scannerHint.textContent = 'Solicitando permiso de cámara...';
 
     // Clean previous instance
     if (qrScanner) {
@@ -178,25 +184,37 @@
     qrScanner = new Html5Qrcode('qr-reader');
     var config = {
       fps: 10,
-      qrbox: { width: 220, height: 220 },
-      aspectRatio: 1.0,
+      qrbox: { width: 200, height: 200 },
       showTorchButtonIfSupported: false,
-      showZoomSliderIfSupported: false,
-      useBarCodeDetectorIfSupported: true
+      showZoomSliderIfSupported: false
     };
 
+    // Try back camera first, fallback to any camera
     qrScanner.start(
       { facingMode: 'environment' },
       config,
       onQrScanned,
-      function () { /* ignore scan errors */ }
+      function () {}
     ).then(function () {
       scannerActive = true;
       $scannerHint.textContent = 'Apunta al código QR del participante';
     }).catch(function (err) {
-      console.error('Camera error:', err);
-      $cameraPrompt.classList.remove('hidden');
-      $scannerHint.textContent = 'Error: ' + (err.message || err) + '. Intenta de nuevo o usa búsqueda manual.';
+      console.error('Back camera failed, trying any camera:', err);
+      $scannerHint.textContent = 'Intentando cámara alternativa...';
+      // Fallback: try any available camera
+      qrScanner.start(
+        { facingMode: 'user' },
+        config,
+        onQrScanned,
+        function () {}
+      ).then(function () {
+        scannerActive = true;
+        $scannerHint.textContent = 'Usando cámara frontal - apunta al QR';
+      }).catch(function (err2) {
+        console.error('All cameras failed:', err2);
+        $cameraPrompt.classList.remove('hidden');
+        $scannerHint.textContent = 'Error: ' + String(err2.message || err2);
+      });
     });
   }
 
