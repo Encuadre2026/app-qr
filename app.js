@@ -116,6 +116,7 @@
     $pinScreen.classList.remove('active');
     $mainApp.classList.add('active');
     // No auto-start scanner; show button and wait for user tap
+    cargarParticipantes();
     syncOfflineQueue();
     updateOfflineBadge();
   }
@@ -253,37 +254,59 @@
   }
 
   // ════════════════════════════════════════════════════════
-  //  SEARCH
+  //  SEARCH (local cache for instant results)
   // ════════════════════════════════════════════════════════
 
+  var participantesCache = [];
+  var cacheLoaded = false;
+
+  function cargarParticipantes() {
+    callApi('listar', {}, function (data) {
+      if (data.success && data.resultados) {
+        participantesCache = data.resultados;
+        cacheLoaded = true;
+      }
+    }, function () {
+      // Sin conexión, intentar luego
+    });
+  }
+
   function onSearchInput() {
-    clearTimeout(searchTimer);
-    var q = $searchInput.value.trim();
+    var q = $searchInput.value.trim().toLowerCase();
     if (q.length < 2) {
       showSearchEmpty('Escribe al menos 2 caracteres');
       return;
     }
-    searchTimer = setTimeout(function () {
-      doSearch(q);
-    }, 300);
+
+    if (!cacheLoaded) {
+      showSearchEmpty('Cargando datos...');
+      cargarParticipantes();
+      return;
+    }
+
+    // Filtrar localmente — instantáneo
+    var resultados = [];
+    for (var i = 0; i < participantesCache.length; i++) {
+      var p = participantesCache[i];
+      var coincide = p.id.toLowerCase() === q ||
+                     p.nombre.toLowerCase().indexOf(q) !== -1;
+      if (coincide) {
+        resultados.push(p);
+        if (resultados.length >= 20) break;
+      }
+    }
+
+    if (resultados.length) {
+      renderSearchResults(resultados);
+    } else {
+      showSearchEmpty('Sin resultados');
+    }
   }
 
   // Listen to multiple events for mobile keyboard compatibility
   $searchInput.addEventListener('input', onSearchInput);
   $searchInput.addEventListener('keyup', onSearchInput);
   $searchInput.addEventListener('change', onSearchInput);
-
-  function doSearch(query) {
-    callApi('buscar', { q: query }, function (data) {
-      if (data.success && data.resultados && data.resultados.length) {
-        renderSearchResults(data.resultados);
-      } else {
-        showSearchEmpty(data.message || 'Sin resultados');
-      }
-    }, function () {
-      showSearchEmpty('Sin conexión a internet');
-    });
-  }
 
   function renderSearchResults(results) {
     var html = '';
