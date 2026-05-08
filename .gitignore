@@ -1,0 +1,7 @@
+# Archivos del servidor local
+server.py
+_cert.pem
+_key.pem
+
+# Apps Script (se despliega aparte)
+apps-script/
