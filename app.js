@@ -189,13 +189,7 @@
     });
     var config = {
       fps: 25,
-      qrbox: function (viewfinderW, viewfinderH) {
-        var size = Math.min(viewfinderW, viewfinderH) * 0.85;
-        return { width: Math.floor(size), height: Math.floor(size) };
-      },
-      disableFlip: false,
-      showTorchButtonIfSupported: false,
-      showZoomSliderIfSupported: false
+      disableFlip: true
     };
 
     // Try back camera first, fallback to any camera
