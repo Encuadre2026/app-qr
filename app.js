@@ -279,7 +279,7 @@
     var resultados = [];
     for (var i = 0; i < participantesCache.length; i++) {
       var p = participantesCache[i];
-      var coincide = p.id.toLowerCase() === q ||
+      var coincide = p.id.toLowerCase().indexOf(q) !== -1 ||
                      p.nombre.toLowerCase().indexOf(q) !== -1;
       if (coincide) {
         resultados.push(p);
