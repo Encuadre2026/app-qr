@@ -446,6 +446,51 @@ body {
   flex-shrink: 0;
 }
 
+/* Camera activation prompt */
+
+.camera-prompt {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: var(--bg-primary);
+  z-index: 5;
+}
+
+.camera-prompt.hidden {
+  display: none;
+}
+
+.btn-camera {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 40px;
+  border: 2px solid var(--gold);
+  border-radius: var(--radius-lg);
+  background: var(--gold-subtle);
+  color: var(--gold);
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-camera:active {
+  transform: scale(0.95);
+  background: rgba(244,208,63,0.15);
+}
+
+.camera-prompt-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 /* ════════════════════════════════════════════════════════════
    SEARCH
    ════════════════════════════════════════════════════════════ */

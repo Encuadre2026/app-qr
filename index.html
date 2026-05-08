@@ -99,8 +99,19 @@
         <div class="scanner-overlay">
           <div class="scanner-frame"></div>
         </div>
+        <!-- Botón de activación (para móviles que requieren gesto) -->
+        <div id="camera-prompt" class="camera-prompt">
+          <button id="btn-start-camera" class="btn-camera">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
+              <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            Activar cámara
+          </button>
+          <p class="camera-prompt-hint">Toca para iniciar el escáner QR</p>
+        </div>
       </div>
-      <p class="scanner-hint">Apunta al código QR del participante</p>
+      <p class="scanner-hint" id="scanner-hint">Apunta al código QR del participante</p>
     </div>
 
     <!-- Search Panel -->

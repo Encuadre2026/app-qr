@@ -151,12 +151,33 @@
   //  QR SCANNER
   // ════════════════════════════════════════════════════════
 
+  var $cameraPrompt = document.getElementById('camera-prompt');
+  var $btnStartCamera = document.getElementById('btn-start-camera');
+  var $scannerHint = document.getElementById('scanner-hint');
+
+  $btnStartCamera.addEventListener('click', function () {
+    startScanner();
+  });
+
   function startScanner() {
-    if (scannerActive || typeof Html5Qrcode === 'undefined') return;
+    if (scannerActive) return;
+    if (typeof Html5Qrcode === 'undefined') {
+      $scannerHint.textContent = 'Error: librería QR no cargada. Recarga la página.';
+      return;
+    }
+
+    // Hide prompt, show scanner
+    $cameraPrompt.classList.add('hidden');
+    $scannerHint.textContent = 'Iniciando cámara...';
+
+    // Clean previous instance
+    if (qrScanner) {
+      try { qrScanner.clear(); } catch(e) {}
+    }
 
     qrScanner = new Html5Qrcode('qr-reader');
     var config = {
-      fps: 12,
+      fps: 10,
       qrbox: { width: 220, height: 220 },
       aspectRatio: 1.0,
       showTorchButtonIfSupported: false,
@@ -168,13 +189,14 @@
       { facingMode: 'environment' },
       config,
       onQrScanned,
-      function () { /* ignore errors during scanning */ }
+      function () { /* ignore scan errors */ }
     ).then(function () {
       scannerActive = true;
+      $scannerHint.textContent = 'Apunta al código QR del participante';
     }).catch(function (err) {
-      console.warn('Camera error:', err);
-      document.querySelector('.scanner-hint').textContent =
-        'No se pudo acceder a la cámara. Usa la búsqueda manual.';
+      console.error('Camera error:', err);
+      $cameraPrompt.classList.remove('hidden');
+      $scannerHint.textContent = 'Error: ' + (err.message || err) + '. Intenta de nuevo o usa búsqueda manual.';
     });
   }
 
