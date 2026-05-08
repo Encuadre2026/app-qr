@@ -306,7 +306,7 @@
       var initials = getInitials(r.nombre);
       var yaReg = !!r.asistencia;
       html +=
-        '<div class="result-item' + (yaReg ? ' ya-registrado' : '') + '" data-id="' + esc(r.id) + '">' +
+        '<div class="result-item' + (yaReg ? ' ya-registrado' : '') + '" data-idx="' + i + '">' +
           '<div class="result-item-avatar">' + esc(initials) + '</div>' +
           '<div class="result-item-info">' +
             '<div class="result-item-name">' + esc(r.nombre) + '</div>' +
@@ -319,15 +319,81 @@
     }
     $searchResults.innerHTML = html;
 
-    // Click handlers
+    // Store results for detail view
+    lastSearchResults = results;
+
+    // Click handlers — open detail instead of marking
     var items = $searchResults.querySelectorAll('.result-item');
     for (var j = 0; j < items.length; j++) {
       items[j].addEventListener('click', function () {
-        var id = this.getAttribute('data-id');
-        if (id) markAttendance(id);
+        var idx = parseInt(this.getAttribute('data-idx'), 10);
+        if (!isNaN(idx) && lastSearchResults[idx]) {
+          showDetail(lastSearchResults[idx]);
+        }
       });
     }
   }
+
+  var lastSearchResults = [];
+
+  // ════════════════════════════════════════════════════════
+  //  PARTICIPANT DETAIL
+  // ════════════════════════════════════════════════════════
+
+  var $detailOverlay = document.getElementById('detail-overlay');
+  var $detailClose = document.getElementById('detail-close');
+  var $detailAvatar = document.getElementById('detail-avatar');
+  var $detailName = document.getElementById('detail-name');
+  var $detailId = document.getElementById('detail-id');
+  var $detailEvento = document.getElementById('detail-evento');
+  var $detailCorreo = document.getElementById('detail-correo');
+  var $detailInstitucion = document.getElementById('detail-institucion');
+  var $detailTelefono = document.getElementById('detail-telefono');
+  var $detailPerfil = document.getElementById('detail-perfil');
+  var $detailAsistencia = document.getElementById('detail-asistencia');
+  var $detailAsistenciaRow = document.getElementById('detail-asistencia-row');
+  var $detailBtnMarcar = document.getElementById('detail-btn-marcar');
+  var detailCurrentId = '';
+
+  function showDetail(p) {
+    $detailAvatar.textContent = getInitials(p.nombre);
+    $detailName.textContent = p.nombre;
+    $detailId.textContent = p.id;
+    $detailEvento.textContent = p.evento || '—';
+    $detailCorreo.textContent = p.correo || '—';
+    $detailInstitucion.textContent = p.institucion || '—';
+    $detailTelefono.textContent = p.telefono || '—';
+    $detailPerfil.textContent = p.perfil || '—';
+    detailCurrentId = p.id;
+
+    if (p.asistencia) {
+      $detailAsistenciaRow.style.display = '';
+      $detailAsistencia.textContent = p.asistencia;
+      $detailAsistencia.style.color = 'var(--green)';
+      $detailBtnMarcar.textContent = '✓ Ya registrado';
+      $detailBtnMarcar.classList.add('ya-registrado');
+      $detailBtnMarcar.disabled = true;
+    } else {
+      $detailAsistenciaRow.style.display = 'none';
+      $detailBtnMarcar.textContent = '✓ Marcar asistencia';
+      $detailBtnMarcar.classList.remove('ya-registrado');
+      $detailBtnMarcar.disabled = false;
+    }
+
+    $detailOverlay.classList.remove('hidden');
+  }
+
+  function hideDetail() {
+    $detailOverlay.classList.add('hidden');
+  }
+
+  $detailClose.addEventListener('click', hideDetail);
+
+  $detailBtnMarcar.addEventListener('click', function () {
+    if (!detailCurrentId || $detailBtnMarcar.disabled) return;
+    hideDetail();
+    markAttendance(detailCurrentId);
+  });
 
   function showSearchEmpty(msg) {
     $searchResults.innerHTML =

@@ -614,6 +614,152 @@ body {
 }
 
 /* ════════════════════════════════════════════════════════════
+   PARTICIPANT DETAIL OVERLAY
+   ════════════════════════════════════════════════════════════ */
+
+.detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(5,5,8,0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: fadeIn 0.2s ease;
+}
+
+.detail-overlay.hidden {
+  display: none;
+}
+
+.detail-card {
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--bg-card);
+  border-top: 2px solid var(--gold);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: 28px 20px 24px;
+  position: relative;
+  animation: slideDetailUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDetailUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.detail-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 28px;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+}
+
+.detail-close:active {
+  color: var(--text-primary);
+}
+
+.detail-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  background: var(--gold-subtle);
+  color: var(--gold);
+  border: 1px solid rgba(244,208,63,0.2);
+}
+
+.detail-name {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin-bottom: 4px;
+}
+
+.detail-id {
+  display: block;
+  text-align: center;
+  font-size: 13px;
+  color: var(--gold-dim);
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+.detail-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.detail-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--bg-secondary);
+}
+
+.detail-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.detail-value {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+  text-align: right;
+  word-break: break-word;
+  max-width: 65%;
+}
+
+.detail-btn-marcar {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--gold);
+  color: #000;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.detail-btn-marcar:active {
+  transform: scale(0.97);
+  background: var(--gold-dim);
+}
+
+.detail-btn-marcar.ya-registrado {
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+/* ════════════════════════════════════════════════════════════
    RESULT OVERLAY
    ════════════════════════════════════════════════════════════ */
 
