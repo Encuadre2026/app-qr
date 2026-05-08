@@ -7,7 +7,7 @@
 
   // ── CONFIGURACIÓN ──────────────────────────────────────
   // ⚠️  Cambia esta URL por la de tu Web App desplegada
-  var APPS_SCRIPT_URL = 'TU_URL_DE_WEB_APP_AQUI';
+  var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzOxAY-uNUfGuoXNfEO7hD8b_jFk60q9YzxpylSACL1E4A26bZQKdBnzqsmkyFNpFkW/exec';
 
   var OFFLINE_QUEUE_KEY = 'qr_asistencia_offline_queue';
   var PIN_SESSION_KEY = 'qr_asistencia_pin_ok';
