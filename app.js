@@ -256,7 +256,7 @@
   //  SEARCH
   // ════════════════════════════════════════════════════════
 
-  $searchInput.addEventListener('input', function () {
+  function onSearchInput() {
     clearTimeout(searchTimer);
     var q = $searchInput.value.trim();
     if (q.length < 2) {
@@ -265,8 +265,13 @@
     }
     searchTimer = setTimeout(function () {
       doSearch(q);
-    }, SEARCH_DEBOUNCE_MS);
-  });
+    }, 300);
+  }
+
+  // Listen to multiple events for mobile keyboard compatibility
+  $searchInput.addEventListener('input', onSearchInput);
+  $searchInput.addEventListener('keyup', onSearchInput);
+  $searchInput.addEventListener('change', onSearchInput);
 
   function doSearch(query) {
     callApi('buscar', { q: query }, function (data) {
