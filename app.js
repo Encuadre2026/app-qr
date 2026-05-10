@@ -141,6 +141,9 @@
     $panelSearch.classList.toggle('active', !isScanner);
 
     if (!isScanner) {
+      stopScanner();
+      $cameraPrompt.classList.remove('hidden');
+      $scannerHint.textContent = 'Toca para iniciar el escáner QR';
       setTimeout(function () { $searchInput.focus(); }, 200);
     }
   }
@@ -185,7 +188,8 @@
       verbose: false
     });
     var config = {
-      fps: 25,
+      fps: 10, // Reducido de 25 a 10 para evitar sobrecarga del CPU en celulares
+      qrbox: { width: 250, height: 250 }, // Limita el área de análisis, haciéndolo mucho más rápido
       disableFlip: true
     };
 
@@ -228,6 +232,35 @@
     });
   }
 
+  // Detener cámara cuando la app pasa a segundo plano o se minimiza el navegador
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') {
+      if (scannerActive) {
+        stopScanner();
+        $cameraPrompt.classList.remove('hidden');
+        $scannerHint.textContent = 'Cámara en pausa - Toca para reanudar';
+      }
+    }
+  });
+
+  // Web Audio API beep para feedback
+  var audioCtx = null;
+  function playBeep() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      var osc = audioCtx.createOscillator();
+      var gainNode = audioCtx.createGain();
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Tono agradable
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); // Volumen suave
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.1); // 100ms
+    } catch (e) {}
+  }
+
   function onQrScanned(decodedText) {
     if (isProcessing) return;
     isProcessing = true;
@@ -237,8 +270,9 @@
       qrScanner.pause(true);
     }
 
-    // Vibrate for feedback
+    // Vibrate and beep for feedback
     if (navigator.vibrate) navigator.vibrate(100);
+    playBeep();
 
     var id = decodedText.trim().toUpperCase();
     markAttendance(id);
@@ -294,10 +328,13 @@
     }
   }
 
-  // Listen to multiple events for mobile keyboard compatibility
-  $searchInput.addEventListener('input', onSearchInput);
-  $searchInput.addEventListener('keyup', onSearchInput);
-  $searchInput.addEventListener('change', onSearchInput);
+  // Listen to multiple events with Debounce for better performance
+  function handleSearchInput() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(onSearchInput, SEARCH_DEBOUNCE_MS);
+  }
+  $searchInput.addEventListener('input', handleSearchInput);
+  $searchInput.addEventListener('change', handleSearchInput);
 
   function renderSearchResults(results) {
     var html = '';
