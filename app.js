@@ -394,6 +394,7 @@
   var $detailId = document.getElementById('detail-id');
   var $detailEvento = document.getElementById('detail-evento');
   var $detailCorreo = document.getElementById('detail-correo');
+  var $detailCurp = document.getElementById('detail-curp');
   var $detailInstitucion = document.getElementById('detail-institucion');
   var $detailTelefono = document.getElementById('detail-telefono');
   var $detailPerfil = document.getElementById('detail-perfil');
@@ -408,6 +409,7 @@
     $detailId.textContent = p.id;
     $detailEvento.textContent = p.evento || '—';
     $detailCorreo.textContent = p.correo || '—';
+    $detailCurp.textContent = p.curp || '—';
     $detailInstitucion.textContent = p.institucion || '—';
     $detailTelefono.textContent = p.telefono || '—';
     $detailPerfil.textContent = p.perfil || '—';
