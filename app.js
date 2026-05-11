@@ -5,9 +5,21 @@
 (function () {
   'use strict';
 
-  // ── CONFIGURACIÓN ──────────────────────────────────────
-  // ⚠️  Cambia esta URL por la de tu Web App desplegada
-  var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzOxAY-uNUfGuoXNfEO7hD8b_jFk60q9YzxpylSACL1E4A26bZQKdBnzqsmkyFNpFkW/exec';
+  // ── CONFIGURACIÓN DE FIREBASE ──────────────────────────
+  var firebaseConfig = {
+    apiKey: "AIzaSyBiJwH8NSqyhv_gtk2QaDlhXBdvosVRSYg",
+    authDomain: "encuadre-2026.firebaseapp.com",
+    databaseURL: "https://encuadre-2026-default-rtdb.firebaseio.com",
+    projectId: "encuadre-2026",
+    storageBucket: "encuadre-2026.firebasestorage.app",
+    messagingSenderId: "790889615532",
+    appId: "1:790889615532:web:f949e49f4b55436fd48f09"
+  };
+  
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  var db = firebase.database();
 
   var OFFLINE_QUEUE_KEY = 'qr_asistencia_offline_queue';
   var PIN_SESSION_KEY = 'qr_asistencia_pin_ok';
@@ -85,36 +97,22 @@
   }
 
   function validatePin(pin) {
-    callApi('verificarPin', { pin: pin }, function (data) {
-      $pinError.style.color = ''; // Restaurar color original
-
-      if (data.success) {
-        sessionStorage.setItem(PIN_SESSION_KEY, '1');
-        showApp();
-      } else {
-        pinCode = '';
-        var dots = $pinDots.querySelectorAll('.dot');
-        for (var i = 0; i < dots.length; i++) {
-          dots[i].classList.remove('filled');
-          dots[i].classList.add('error');
-        }
-        $pinError.textContent = data.message || 'PIN incorrecto';
-        setTimeout(function () {
-          for (var j = 0; j < dots.length; j++) dots[j].classList.remove('error');
-        }, 600);
+    $pinError.style.color = ''; // Restaurar color original
+    if (pin === '2026') {
+      sessionStorage.setItem(PIN_SESSION_KEY, '1');
+      showApp();
+    } else {
+      pinCode = '';
+      var dots = $pinDots.querySelectorAll('.dot');
+      for (var i = 0; i < dots.length; i++) {
+        dots[i].classList.remove('filled');
+        dots[i].classList.add('error');
       }
-    }, function () {
-      $pinError.style.color = ''; // Restaurar color original
-      // Offline fallback: accept default pin
-      if (pin === '2026') {
-        sessionStorage.setItem(PIN_SESSION_KEY, '1');
-        showApp();
-      } else {
-        pinCode = '';
-        $pinError.textContent = 'Sin conexión. Intenta con el PIN por defecto.';
-        updatePinDots();
-      }
-    });
+      $pinError.textContent = 'PIN incorrecto';
+      setTimeout(function () {
+        for (var j = 0; j < dots.length; j++) dots[j].classList.remove('error');
+      }, 600);
+    }
   }
 
   function showApp() {
@@ -291,13 +289,20 @@
   var cacheLoaded = false;
 
   function cargarParticipantes() {
-    callApi('listar', {}, function (data) {
-      if (data.success && data.resultados) {
-        participantesCache = data.resultados;
-        cacheLoaded = true;
+    db.ref('participantes').on('value', function(snapshot) {
+      var data = snapshot.val();
+      participantesCache = [];
+      if (data) {
+        for (var key in data) {
+          participantesCache.push(data[key]);
+        }
       }
-    }, function () {
-      // Sin conexión, intentar luego
+      cacheLoaded = true;
+      if ($tabSearch.classList.contains('active')) {
+        onSearchInput();
+      }
+    }, function(error) {
+      console.error('Error Firebase:', error);
     });
   }
 
@@ -452,24 +457,37 @@
   // ════════════════════════════════════════════════════════
 
   function markAttendance(id) {
-    callApi('marcar', { id: id }, function (data) {
+    var p = null;
+    for (var i = 0; i < participantesCache.length; i++) {
+      if (participantesCache[i].id === id) { p = participantesCache[i]; break; }
+    }
+
+    if (!p) {
       isProcessing = false;
-      if (data.success) {
-        showResult('success', data.nombre || id, data.evento || '', 'Asistencia registrada ✓', data.asistencia || '');
-        actualizarCacheLocal(id, data.asistencia || 'Sí');
-      } else if (data.yaRegistrado) {
-        showResult('already', data.nombre || id, data.evento || '', 'Ya registrado previamente', data.asistencia || '');
-        actualizarCacheLocal(id, data.asistencia || 'Sí');
-      } else {
-        showResult('error', id, '', data.message || 'Error desconocido', '');
-      }
-    }, function () {
-      // Offline: queue it
+      showResult('error', id, '', 'ID no encontrado en la base de datos', '');
+      return;
+    }
+
+    if (p.asistencia && p.asistencia.indexOf('Pendiente') === -1) {
       isProcessing = false;
-      addToOfflineQueue(id);
-      showResult('offline-queued', id, '', 'Guardado sin conexión', 'Se sincronizará al reconectar');
-      actualizarCacheLocal(id, 'Pendiente (Offline)');
-    });
+      showResult('already', p.nombre, p.evento || '', 'Ya registrado previamente', p.asistencia);
+      return;
+    }
+
+    var ahora = new Date();
+    var pad = function(n) { return (n < 10 ? '0' : '') + n; };
+    var ahoraStr = pad(ahora.getDate())+'/'+pad(ahora.getMonth()+1)+'/'+ahora.getFullYear()+' '+pad(ahora.getHours())+':'+pad(ahora.getMinutes());
+    
+    actualizarCacheLocal(id, ahoraStr);
+    db.ref('participantes/' + id).update({ asistencia: ahoraStr }).catch(function(){});
+
+    isProcessing = false;
+    if (navigator.onLine) {
+      showResult('success', p.nombre, p.evento || '', 'Asistencia registrada ✓', ahoraStr);
+    } else {
+      addToOfflineQueue({ id: id, asistencia: ahoraStr });
+      showResult('offline-queued', p.nombre, p.evento || '', 'Guardado sin conexión', ahoraStr);
+    }
   }
 
   function actualizarCacheLocal(id, valorAsistencia) {
@@ -562,13 +580,22 @@
     var queue = getOfflineQueue();
     if (!queue.length || !navigator.onLine) return;
 
-    callApi('marcarBatch', { ids: JSON.stringify(queue) }, function (data) {
-      if (data.success) {
-        saveOfflineQueue([]);
+    var updates = {};
+    for (var i=0; i<queue.length; i++) {
+      var item = queue[i];
+      if (typeof item === 'string') {
+         var ahora = new Date();
+         var pad = function(n) { return (n < 10 ? '0' : '') + n; };
+         var str = pad(ahora.getDate())+'/'+pad(ahora.getMonth()+1)+'/'+ahora.getFullYear()+' '+pad(ahora.getHours())+':'+pad(ahora.getMinutes());
+         updates[item + '/asistencia'] = str;
+      } else {
+         updates[item.id + '/asistencia'] = item.asistencia;
       }
-    }, function () {
-      // Still offline, try later
-    });
+    }
+
+    db.ref('participantes').update(updates).then(function() {
+      saveOfflineQueue([]);
+    }).catch(function(e){});
   }
 
   // Listen for connectivity changes
@@ -589,53 +616,7 @@
     updatePinDots();
   });
 
-  // ════════════════════════════════════════════════════════
-  //  API HELPER (JSONP for cross-origin Apps Script)
-  // ════════════════════════════════════════════════════════
 
-  var jsonpCounter = 0;
-
-  function callApi(action, params, onSuccess, onError) {
-    var cbName = '__qr_cb_' + (jsonpCounter++);
-    var timeout;
-
-    // Build URL
-    var url = APPS_SCRIPT_URL + '?action=' + encodeURIComponent(action) + '&callback=' + cbName;
-    for (var key in params) {
-      if (params.hasOwnProperty(key)) {
-        url += '&' + encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
-      }
-    }
-
-    // Callback
-    window[cbName] = function (data) {
-      clearTimeout(timeout);
-      cleanup();
-      if (onSuccess) onSuccess(data);
-    };
-
-    // Script tag
-    var script = document.createElement('script');
-    script.src = url;
-    script.onerror = function () {
-      clearTimeout(timeout);
-      cleanup();
-      if (onError) onError();
-    };
-
-    function cleanup() {
-      try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
-      if (script.parentNode) script.parentNode.removeChild(script);
-    }
-
-    // Timeout (20s)
-    timeout = setTimeout(function () {
-      cleanup();
-      if (onError) onError();
-    }, 20000);
-
-    document.head.appendChild(script);
-  }
 
   // ════════════════════════════════════════════════════════
   //  UTILITIES
