@@ -69,6 +69,8 @@
     updatePinDots();
 
     if (pinCode.length === 4) {
+      $pinError.style.color = 'var(--text-secondary)';
+      $pinError.textContent = 'Verificando...';
       validatePin(pinCode);
     }
   });
@@ -84,6 +86,8 @@
 
   function validatePin(pin) {
     callApi('verificarPin', { pin: pin }, function (data) {
+      $pinError.style.color = ''; // Restaurar color original
+
       if (data.success) {
         sessionStorage.setItem(PIN_SESSION_KEY, '1');
         showApp();
@@ -100,6 +104,7 @@
         }, 600);
       }
     }, function () {
+      $pinError.style.color = ''; // Restaurar color original
       // Offline fallback: accept default pin
       if (pin === '2026') {
         sessionStorage.setItem(PIN_SESSION_KEY, '1');
@@ -451,8 +456,10 @@
       isProcessing = false;
       if (data.success) {
         showResult('success', data.nombre || id, data.evento || '', 'Asistencia registrada ✓', data.asistencia || '');
+        actualizarCacheLocal(id, data.asistencia || 'Sí');
       } else if (data.yaRegistrado) {
         showResult('already', data.nombre || id, data.evento || '', 'Ya registrado previamente', data.asistencia || '');
+        actualizarCacheLocal(id, data.asistencia || 'Sí');
       } else {
         showResult('error', id, '', data.message || 'Error desconocido', '');
       }
@@ -461,7 +468,21 @@
       isProcessing = false;
       addToOfflineQueue(id);
       showResult('offline-queued', id, '', 'Guardado sin conexión', 'Se sincronizará al reconectar');
+      actualizarCacheLocal(id, 'Pendiente (Offline)');
     });
+  }
+
+  function actualizarCacheLocal(id, valorAsistencia) {
+    for (var i = 0; i < participantesCache.length; i++) {
+      if (participantesCache[i].id === id) {
+        participantesCache[i].asistencia = valorAsistencia;
+        break;
+      }
+    }
+    // Refrescar resultados de búsqueda si estamos en esa pestaña
+    if ($tabSearch.classList.contains('active') && $searchInput.value.trim().length >= 2) {
+      onSearchInput();
+    }
   }
 
   // ════════════════════════════════════════════════════════
