@@ -628,11 +628,11 @@
       if (script.parentNode) script.parentNode.removeChild(script);
     }
 
-    // Timeout (8s)
+    // Timeout (20s)
     timeout = setTimeout(function () {
       cleanup();
       if (onError) onError();
-    }, 8000);
+    }, 20000);
 
     document.head.appendChild(script);
   }
