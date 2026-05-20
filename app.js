@@ -5,21 +5,10 @@
 (function () {
   'use strict';
 
-  // ── CONFIGURACIÓN DE FIREBASE ──────────────────────────
-  var firebaseConfig = {
-    apiKey: "AIzaSyBiJwH8NSqyhv_gtk2QaDlhXBdvosVRSYg",
-    authDomain: "encuadre-2026.firebaseapp.com",
-    databaseURL: "https://encuadre-2026-default-rtdb.firebaseio.com",
-    projectId: "encuadre-2026",
-    storageBucket: "encuadre-2026.firebasestorage.app",
-    messagingSenderId: "790889615532",
-    appId: "1:790889615532:web:f949e49f4b55436fd48f09"
-  };
-  
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
-  var db = firebase.database();
+  // ── CONFIGURACIÓN DE LA API ──────────────────────────
+  var API_URL = "https://encuadre-2026-api.sitio-392.workers.dev";
+  // IMPORTANTE: Pon aquí la misma contraseña que pusiste en Cloudflare
+  var ADMIN_SECRET = "MIPASSWORDSECRETO123"; 
 
   var OFFLINE_QUEUE_KEY = 'qr_asistencia_offline_queue';
   var PIN_SESSION_KEY = 'qr_asistencia_pin_ok';
@@ -288,21 +277,46 @@
   var participantesCache = [];
   var cacheLoaded = false;
 
+  function formatearFecha(dateStr) {
+    if (!dateStr) return null;
+    var d = new Date(dateStr);
+    var pad = function(n) { return (n < 10 ? '0' : '') + n; };
+    return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+  }
+
   function cargarParticipantes() {
-    db.ref('participantes').on('value', function(snapshot) {
-      var data = snapshot.val();
+    fetch(API_URL + '/api/admin/registros', {
+      headers: { 'Authorization': 'Bearer ' + ADMIN_SECRET }
+    })
+    .then(function(res) {
+      if (!res.ok) throw new Error('Error de red');
+      return res.json();
+    })
+    .then(function(data) {
       participantesCache = [];
-      if (data) {
-        for (var key in data) {
-          participantesCache.push(data[key]);
+      if (data && data.registros) {
+        for (var i = 0; i < data.registros.length; i++) {
+          var reg = data.registros[i];
+          participantesCache.push({
+            id: reg.id_participante,
+            nombre: reg.nombre,
+            evento: reg.taller,
+            correo: reg.correo,
+            curp: reg.curp,
+            telefono: reg.telefono,
+            institucion: reg.institucion,
+            perfil: reg.perfil,
+            asistencia: reg.asistio ? formatearFecha(reg.fecha_asistencia) : null
+          });
         }
       }
       cacheLoaded = true;
       if ($tabSearch.classList.contains('active')) {
         onSearchInput();
       }
-    }, function(error) {
-      console.error('Error Firebase:', error);
+    })
+    .catch(function(error) {
+      console.error('Error API:', error);
     });
   }
 
@@ -481,12 +495,26 @@
     var ahoraStr = pad(ahora.getDate())+'/'+pad(ahora.getMonth()+1)+'/'+ahora.getFullYear()+' '+pad(ahora.getHours())+':'+pad(ahora.getMinutes());
     
     actualizarCacheLocal(id, ahoraStr);
-    db.ref('participantes/' + id).update({ asistencia: ahoraStr }).catch(function(){});
 
-    isProcessing = false;
     if (navigator.onLine) {
-      showResult('success', p.nombre, p.evento || '', 'Asistencia registrada ✓', ahoraStr);
+      fetch(API_URL + '/api/asistencia', {
+        method: 'POST',
+        headers: { 
+          'Authorization': 'Bearer ' + ADMIN_SECRET,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id: id })
+      }).then(function(res) {
+         if (!res.ok) throw new Error('Error al guardar');
+         isProcessing = false;
+         showResult('success', p.nombre, p.evento || '', 'Asistencia registrada ✓', ahoraStr);
+      }).catch(function(e){
+         isProcessing = false;
+         addToOfflineQueue({ id: id, asistencia: ahoraStr });
+         showResult('offline-queued', p.nombre, p.evento || '', 'Guardado sin conexión (Error de red)', ahoraStr);
+      });
     } else {
+      isProcessing = false;
       addToOfflineQueue({ id: id, asistencia: ahoraStr });
       showResult('offline-queued', p.nombre, p.evento || '', 'Guardado sin conexión', ahoraStr);
     }
@@ -582,22 +610,27 @@
     var queue = getOfflineQueue();
     if (!queue.length || !navigator.onLine) return;
 
-    var updates = {};
+    var promises = [];
     for (var i=0; i<queue.length; i++) {
       var item = queue[i];
-      if (typeof item === 'string') {
-         var ahora = new Date();
-         var pad = function(n) { return (n < 10 ? '0' : '') + n; };
-         var str = pad(ahora.getDate())+'/'+pad(ahora.getMonth()+1)+'/'+ahora.getFullYear()+' '+pad(ahora.getHours())+':'+pad(ahora.getMinutes());
-         updates[item + '/asistencia'] = str;
-      } else {
-         updates[item.id + '/asistencia'] = item.asistencia;
-      }
+      var id = typeof item === 'string' ? item : item.id;
+      
+      var p = fetch(API_URL + '/api/asistencia', {
+        method: 'POST',
+        headers: { 
+          'Authorization': 'Bearer ' + ADMIN_SECRET,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id: id })
+      });
+      promises.push(p);
     }
 
-    db.ref('participantes').update(updates).then(function() {
+    Promise.all(promises).then(function() {
       saveOfflineQueue([]);
-    }).catch(function(e){});
+    }).catch(function(e){
+      console.error('Error sincronizando', e);
+    });
   }
 
   // Listen for connectivity changes
