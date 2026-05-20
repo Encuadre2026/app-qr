@@ -8,7 +8,7 @@
   // ── CONFIGURACIÓN DE LA API ──────────────────────────
   var API_URL = "https://encuadre-2026-api.sitio-392.workers.dev";
   // IMPORTANTE: Pon aquí la misma contraseña que pusiste en Cloudflare
-  var ADMIN_SECRET = "MIPASSWORDSECRETO123"; 
+  var ADMIN_SECRET = "Encuadre2026futurologia"; 
 
   var OFFLINE_QUEUE_KEY = 'qr_asistencia_offline_queue';
   var PIN_SESSION_KEY = 'qr_asistencia_pin_ok';
