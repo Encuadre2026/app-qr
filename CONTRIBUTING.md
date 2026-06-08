@@ -1,57 +1,70 @@
-# Guía de Contribución
+# Guía de Contribución 🤝
 
 ¡Gracias por tu interés en contribuir a la **App QR - Encuadre 2026**! 
-Este documento describe nuestras mejores prácticas y el flujo de trabajo sugerido para mantener el código limpio y organizado.
 
-## Flujo de Trabajo (Git Flow)
+Este proyecto se ha migrado a un estándar Enterprise riguroso. Este documento describe las convenciones, las reglas de arquitectura y el flujo de trabajo sugerido para mantener el código base sólido y altamente tipado.
+
+## 🌿 Flujo de Trabajo (Git Flow)
 
 1. **Clona y crea una rama:**
-   Nunca trabajes directamente en la rama `main`. Por favor crea una rama a partir de `main` con el siguiente formato de nombres:
-   - Para nuevas funciones: `feat/nombre-de-la-funcion`
-   - Para corregir errores: `fix/descripcion-del-error`
-   - Para cambios en documentación: `docs/actualizacion-readme`
-   - Para refactorización: `refactor/descripcion`
+   Nunca trabajes directamente en la rama `main`. Crea una rama desde `main` usando la convención de Git Flow:
+   - Nuevas funciones: `feat/nombre-de-la-funcion`
+   - Corrección de errores: `fix/descripcion-del-error`
+   - Documentación: `docs/actualizacion-readme`
+   - Tareas técnicas: `chore/actualizacion-dependencias` o `refactor/modularizacion`
 
    ```bash
    git checkout -b feat/mejorar-escaner
    ```
 
 2. **Trabaja en tus cambios:**
-   - Asegúrate de seguir los estándares descritos abajo.
-   - Prueba siempre tus cambios localmente usando `python server.py` antes de hacer commit.
+   - Asegúrate de tener el entorno en modo desarrollo corriendo mediante `npm run dev`.
+   - Revisa que tus tipos e interfaces TypeScript estén correctos.
+   - **IMPORTANTE:** Nunca uses `// @ts-nocheck` ni tipos `any` a menos que sea estrictamente necesario (y si lo haces, documenta exhaustivamente el por qué).
 
 3. **Haz commits claros y descriptivos:**
-   Sigue la convención de *Conventional Commits*:
-   ```
-   feat: agrega botón de cierre en el modal
-   fix: corrige error al sincronizar en modo offline
-   docs: actualiza el archivo README con instrucciones de instalación
+   El proyecto requiere *Conventional Commits*:
+   ```text
+   feat: agrega botón de cierre en el modal de detalle
+   fix: corrige error de tipado al sincronizar modo offline
+   refactor: mueve lógica de formato de fecha a utils.ts
    ```
 
 4. **Sube tu rama y crea un Pull Request (PR):**
-   - Haz push a tu rama en el repositorio remoto.
+   - Haz push de la rama.
    - Abre un Pull Request dirigido a `main`.
-   - Describe claramente qué soluciona tu PR y adjunta capturas de pantalla si hay cambios visuales.
+   - El pipeline de GitHub Actions se ejecutará automáticamente para verificar que el empaquetado (Build) y el Linter (ESLint) pasen correctamente. Si el *Action* falla, tu PR no podrá ser aprobado.
 
-## Estándares de Código
+---
 
-Actualmente el proyecto utiliza JavaScript nativo ("Vanilla JS") y CSS puro. Aunque no tengamos un *Linter* estricto configurado, solicitamos seguir estas reglas para mantener la legibilidad:
+## 🛠️ Estándares de Código y Arquitectura
 
-### JavaScript
-- **Variables:** Mantén consistencia. En el estado actual del proyecto se usa `var`, pero para nuevo código sugerimos encarecidamente transicionar a `let` y `const`.
-- **Nomenclatura:** Usa `camelCase` para variables y funciones. Las variables globales o constantes importantes pueden ir en `UPPER_SNAKE_CASE` (ej. `API_URL`).
-- **DOM:** Las variables que guardan una referencia directa a un elemento del DOM tienen el prefijo `$` (ej. `var $btnStartCamera = ...`). Por favor respeta esta convención.
-- **Comentarios:** Sé breve y conciso. Prefiere comentar el *por qué* de una decisión en lugar del *qué* está haciendo el código, a menos que sea una fórmula matemática compleja.
+### 1. TypeScript Estricto
+La aplicación usa `"strict": true` en `tsconfig.json`. Todas las referencias al DOM deben ser casteadas explícitamente y comprobadas (ej. `const btn = document.getElementById('btn') as HTMLButtonElement;`).
 
-### CSS
-- Agrupa los selectores de forma semántica.
-- Reutiliza las variables CSS que se encuentran en el archivo `styles.css` bajo el bloque `:root {}` (como `--primary`, `--bg-dark`, etc.). No quemes ("hardcode") colores repetidos a lo largo de las clases.
+### 2. Estructura de Módulos
+Para mantener la escalabilidad, la lógica ya no vive en un único archivo. 
+- Las variables e interfaces de datos deben definirse en `src/types.ts`.
+- Las llamadas a APIs y lógica de red pertenecen a `src/api.ts`.
+- La manipulación directa de la interfaz gráfica y los Event Listeners se manejan en `src/main.ts`.
+- Si agregas una librería pesada o especializada (como se hizo con `html5-qrcode`), considera envolverla en su propio módulo (ej. `src/scanner.ts`).
 
-## Pendientes a futuro (Roadmap de mejoras)
-Si estás buscando en qué ayudar, aquí tienes una lista de tareas técnicas pendientes:
-- [ ] Ocultar `ADMIN_SECRET` y manejar la autenticación de forma segura (BFF o SSR).
-- [ ] Configurar un `package.json` para instalar un formateador como Prettier.
-- [ ] Integrar un flujo de CI/CD para despliegue automatizado.
-- [ ] Empaquetar y minificar (usando Vite o Webpack) para optimizar la carga inicial.
+### 3. ESLint y Prettier
+El proyecto cuenta con un Linter estricto. Antes de crear un PR, asegúrate de que tu código cumpla con el formato. Tu editor de código (VS Code, WebStorm) debe estar configurado para formatear automáticamente usando el archivo `.prettierrc` del proyecto.
 
-¡Cualquier ayuda o mejora es bienvenida!
+### 4. Nomenclatura DOM
+Se conserva la convención de prefijar con `$` las variables que almacenan una referencia directa a un elemento del DOM para distinguirlas fácilmente del resto de la lógica de negocio.
+```typescript
+const $modalParticipante = document.getElementById('modal') as HTMLDivElement;
+```
+
+---
+
+## 🚀 Próximos Desafíos (Roadmap)
+Si buscas en qué ayudar, aquí tienes los hitos técnicos pendientes para la siguiente etapa de evolución:
+
+- [ ] **Implementar Husky y Lint-Staged:** Prevenir *commits* que no cumplan con el formato de Prettier o que arrojen errores de ESLint.
+- [ ] **Migrar UI a Web Components o Framework:** Actualmente el DOM se maneja de forma manual (*Vanilla TS*). Se podría evaluar la migración a *Lit*, *Preact* o *Svelte* si la complejidad de la interfaz crece.
+- [ ] **Tests Unitarios:** Añadir *Vitest* para someter a prueba las funciones puras de `utils.ts` y la cola offline de `api.ts`.
+
+¡Cualquier mejora u optimización técnica será muy bienvenida!

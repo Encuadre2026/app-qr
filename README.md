@@ -1,57 +1,102 @@
-# App QR - Encuadre 2026
+<div align="center">
+  <h1>📷 App QR - Encuadre 2026</h1>
+  <p><b>Aplicación Web Progresiva (PWA) empresarial para el control de acceso y asistencia.</b></p>
 
-Aplicación Web Progresiva (PWA) de una sola página diseñada para llevar el control de asistencia del evento **Encuadre 2026**. 
-
-Esta herramienta es de uso interno exclusivo para el **staff y organizadores**. Permite escanear códigos QR de los gafetes de los participantes, buscar asistentes manualmente y sincronizar las asistencias con la base de datos principal en Cloudflare.
-
-## Características Principales
-* **PWA:** Instalable en dispositivos móviles (iOS y Android) para acceso rápido.
-* **Escáner QR integrado:** Usa la cámara del dispositivo (`html5-qrcode`) para una validación veloz.
-* **Modo Offline:** Si la conexión a internet falla, guarda las asistencias de forma local y las sincroniza automáticamente al recuperar la red.
-* **Búsqueda Manual:** Buscador ultrarrápido (en memoria) por nombre o ID del participante.
+  [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+  [![Vite](https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E)](https://vitejs.dev/)
+  [![PWA](https://img.shields.io/badge/PWA-5A0FC8?style=for-the-badge&logo=pwa&logoColor=white)](#)
+  [![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)](#)
+</div>
 
 ---
 
-## Levantar el proyecto en local
+## 📌 Descripción del Proyecto
 
-La aplicación requiere acceso a la cámara web. Por medidas de seguridad de los navegadores (Chrome, Safari, etc.), el acceso a la cámara **solo está permitido en contextos seguros (HTTPS)** o en `localhost`.
+Esta herramienta es de uso interno exclusivo para el **staff y organizadores** del evento *Encuadre 2026*. Permite escanear códigos QR de los gafetes de los participantes, buscar asistentes manualmente y sincronizar las asistencias con la base de datos principal alojada en **Cloudflare Workers**.
 
-Para probarlo desde tu celular conectado a la misma red local que tu computadora, hemos incluido un script en Python que levanta un servidor HTTPS local.
+La aplicación fue reconstruida desde cero bajo un estándar **Enterprise**, migrando de un entorno Vanilla JS monolítico a una arquitectura modular estricta con TypeScript, empaquetado ultra rápido con Vite, e integración continua (CI/CD).
+
+## ✨ Características Principales
+
+- 📱 **PWA Nativa:** Instalable en dispositivos móviles (iOS y Android) y de escritorio. Soporte completo offline gracias a Service Workers generados automáticamente por `vite-plugin-pwa`.
+- ⚡ **Escáner QR Optimizado:** Usa la cámara del dispositivo de forma nativa (`html5-qrcode`) con algoritmos de escaneo eficientes para evitar el calentamiento del celular.
+- 📴 **Sincronización Offline:** Si la conexión a internet falla, guarda las asistencias de forma local usando una Offline Queue (Cola fuera de línea) y las sincroniza automáticamente al recuperar la red.
+- 🔍 **Búsqueda Instantánea:** Buscador en memoria *debounced* que permite encontrar asistentes por ID, nombre o evento sin demoras.
+- 🛡️ **Tipado Estricto:** Código base 100% en TypeScript (`strict: true`), garantizando solidez durante el desarrollo y mantenimiento.
+
+---
+
+## 🏗️ Arquitectura de la Aplicación
+
+La aplicación sigue una arquitectura puramente "Cliente" (*Client-Side Rendering*), pero su lógica está fuertemente modularizada:
+
+```mermaid
+graph TD
+    A[UI / DOM Events<br/>(main.ts)] -->|Types| B(types.ts)
+    A -->|Consume| C(api.ts)
+    A -->|Controla| D(scanner.ts)
+    C <-->|Peticiones| E[(Cloudflare API)]
+    C <-->|Almacenamiento| F[(Offline Queue / LocalStorage)]
+    D <-->|Cámara| G[Dispositivo Móvil]
+```
+
+## 🚀 Instalación y Desarrollo Local
 
 ### Prerrequisitos
-- Python 3.x
-- OpenSSL instalado (o Git Bash en Windows, que incluye OpenSSL).
+- **Node.js** v20 o superior.
+- **npm** v10 o superior.
 
-### Instrucciones
-1. Abre tu terminal en la carpeta del proyecto.
-2. Ejecuta el servidor:
+### Pasos
+
+1. **Clonar el repositorio**
    ```bash
-   python server.py
+   git clone https://github.com/Encuadre2026/app-qr.git
+   cd "app-qr"
    ```
-3. El script autogenerará un certificado SSL (`_cert.pem` y `_key.pem`) para poder servir HTTPS.
-4. En tu celular, navega a la URL que indique la consola (ej. `https://192.168.1.10:8443`).
-5. **Nota:** Tu navegador advertirá que la conexión "no es segura" porque el certificado es autofirmado. Debes omitir la advertencia y darle a "Proceder a 192.168.x.x".
+
+2. **Instalar dependencias**
+   ```bash
+   npm install
+   ```
+
+3. **Configurar el entorno**
+   Copia el archivo de ejemplo y crea tu archivo `.env` local:
+   ```bash
+   cp .env.example .env
+   ```
+   *Agrega el secreto administrativo en `VITE_ADMIN_SECRET` para poder hacer llamadas a la API.*
+
+4. **Levantar el servidor de desarrollo**
+   ```bash
+   npm run dev
+   ```
+   El proyecto estará disponible en `http://localhost:5173/`. Vite se encargará de compilar TypeScript en tiempo real mediante HMR (Hot Module Replacement).
 
 ---
 
-## Conexión a la API (Cloudflare Workers)
+## 📦 Producción y Despliegue (CI/CD)
 
-La aplicación se comunica con una API externa alojada en Cloudflare Workers (`https://encuadre-2026-api.sitio-392.workers.dev`).
+El proyecto cuenta con un pipeline automatizado a través de **GitHub Actions**.
 
-### Endpoints principales:
-- `GET /api/admin/registros`: Descarga el listado inicial de participantes para la búsqueda y caché local.
-- `POST /api/asistencia`: Envía el registro de asistencia confirmada de un participante.
+1. Cualquier *push* o *merge* a la rama `main` dispara el flujo de trabajo (`.github/workflows/deploy.yml`).
+2. El servidor CI instala dependencias (`npm ci`), verifica tipos y compila la app (`npm run build`).
+3. Si el build es exitoso, los archivos estáticos de la carpeta `dist/` se publican automáticamente en **GitHub Pages** bajo el directorio base `/app-qr/`.
 
-> **⚠️ Advertencia de Seguridad Actual:**  
-> Actualmente, la clave de administración (`ADMIN_SECRET`) se encuentra escrita "en duro" (hardcoded) dentro del archivo `app.js`. Esto es un riesgo de seguridad en entornos de producción públicos. Para un despliegue real, esta validación debe trasladarse a un servidor backend o manejarse mediante tokens de sesión dinámicos.
+Para construir manualmente para producción:
+```bash
+npm run build
+npm run preview # Para previsualizar el build generado
+```
 
 ---
 
-## Despliegue en Producción
-Debido a que es un proyecto puramente basado en archivos estáticos (HTML, CSS, JS), puede alojarse de forma gratuita y con HTTPS en plataformas como:
-* GitHub Pages
-* Cloudflare Pages
-* Vercel
-* Netlify
+## 🔐 Endpoints de la API (BFF)
 
-Al subir los archivos a cualquiera de estas plataformas, asegúrate de que el archivo `manifest.json` y `sw.js` se sirvan correctamente para que el dispositivo reconozca la aplicación como una PWA instalable.
+La aplicación se comunica con un backend Serveless alojado en `encuadre-2026-api.sitio-392.workers.dev`.
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `GET` | `/api/admin/registros` | Descarga el listado total de participantes. Usado para poblar la caché de búsqueda manual en memoria. |
+| `POST` | `/api/asistencia` | Envía el ID del participante para marcar su asistencia de forma definitiva en la base de datos principal. |
+
+> **Nota:** Todos los endpoints requieren autenticación. La app enruta el token secret `VITE_ADMIN_SECRET` mediante un *Bearer Token* en el header `Authorization`.
