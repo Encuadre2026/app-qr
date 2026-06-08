@@ -1,6 +1,6 @@
 <div align="center">
-  <h1>📷 App QR - Encuadre 2026</h1>
-  <p><b>Aplicación Web Progresiva (PWA) empresarial para el control de acceso y asistencia.</b></p>
+  <h1>App QR - Encuadre 2026</h1>
+  <p><b>Aplicación Web Progresiva (PWA) de alto rendimiento para el control de acceso y asistencia.</b></p>
 
   [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
   [![Vite](https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E)](https://vitejs.dev/)
@@ -10,23 +10,23 @@
 
 ---
 
-## 📌 Descripción del Proyecto
+## Descripción del Proyecto
 
 Esta herramienta es de uso interno exclusivo para el **staff y organizadores** del evento *Encuadre 2026*. Permite escanear códigos QR de los gafetes de los participantes, buscar asistentes manualmente y sincronizar las asistencias con la base de datos principal alojada en **Cloudflare Workers**.
 
-La aplicación fue reconstruida desde cero bajo un estándar **Enterprise**, migrando de un entorno Vanilla JS monolítico a una arquitectura modular estricta con TypeScript, empaquetado ultra rápido con Vite, e integración continua (CI/CD).
+La aplicación fue reconstruida desde cero bajo un estándar riguroso, migrando de un entorno Vanilla JS monolítico a una arquitectura modular estricta con TypeScript, empaquetado optimizado con Vite, e integración continua (CI/CD).
 
-## ✨ Características Principales
+## Características Principales
 
-- 📱 **PWA Nativa:** Instalable en dispositivos móviles (iOS y Android) y de escritorio. Soporte completo offline gracias a Service Workers generados automáticamente por `vite-plugin-pwa`.
-- ⚡ **Escáner QR Optimizado:** Usa la cámara del dispositivo de forma nativa (`html5-qrcode`) con algoritmos de escaneo eficientes para evitar el calentamiento del celular.
-- 📴 **Sincronización Offline:** Si la conexión a internet falla, guarda las asistencias de forma local usando una Offline Queue (Cola fuera de línea) y las sincroniza automáticamente al recuperar la red.
-- 🔍 **Búsqueda Instantánea:** Buscador en memoria *debounced* que permite encontrar asistentes por ID, nombre o evento sin demoras.
-- 🛡️ **Tipado Estricto:** Código base 100% en TypeScript (`strict: true`), garantizando solidez durante el desarrollo y mantenimiento.
+- **PWA Nativa:** Instalable en dispositivos móviles (iOS y Android) y de escritorio. Soporte completo offline gracias a Service Workers generados automáticamente por `vite-plugin-pwa`.
+- **Escáner QR Optimizado:** Usa la cámara del dispositivo de forma nativa (`html5-qrcode`) con algoritmos de escaneo eficientes para evitar el calentamiento del dispositivo móvil.
+- **Sincronización Offline:** Si la conexión a internet falla, guarda las asistencias de forma local usando una Offline Queue (Cola fuera de línea) y las sincroniza automáticamente al recuperar la red.
+- **Búsqueda Instantánea:** Buscador en memoria *debounced* que permite encontrar asistentes por ID, nombre o evento sin demoras.
+- **Tipado Estricto:** Código base 100% en TypeScript (`strict: true`), garantizando solidez durante el desarrollo y mantenimiento.
 
 ---
 
-## 🏗️ Arquitectura de la Aplicación
+## Arquitectura de la Aplicación
 
 La aplicación sigue una arquitectura puramente "Cliente" (*Client-Side Rendering*), pero su lógica está fuertemente modularizada:
 
@@ -40,7 +40,7 @@ graph TD
     D <-->|Cámara| G[Dispositivo Móvil]
 ```
 
-## 🚀 Instalación y Desarrollo Local
+## Instalación y Desarrollo Local
 
 ### Prerrequisitos
 - **Node.js** v20 o superior.
@@ -64,7 +64,7 @@ graph TD
    ```bash
    cp .env.example .env
    ```
-   *Agrega el secreto administrativo en `VITE_ADMIN_SECRET` para poder hacer llamadas a la API.*
+   *Agrega la clave administrativa en `VITE_ADMIN_SECRET` para poder hacer llamadas a la API.*
 
 4. **Levantar el servidor de desarrollo**
    ```bash
@@ -74,7 +74,7 @@ graph TD
 
 ---
 
-## 📦 Producción y Despliegue (CI/CD)
+## Producción y Despliegue (CI/CD)
 
 El proyecto cuenta con un pipeline automatizado a través de **GitHub Actions**.
 
@@ -90,7 +90,7 @@ npm run preview # Para previsualizar el build generado
 
 ---
 
-## 🔐 Endpoints de la API (BFF)
+## Endpoints de la API (BFF)
 
 La aplicación se comunica con un backend Serveless alojado en `encuadre-2026-api.sitio-392.workers.dev`.
 

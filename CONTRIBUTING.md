@@ -1,10 +1,10 @@
-# Guía de Contribución 🤝
+# Guía de Contribución
 
 ¡Gracias por tu interés en contribuir a la **App QR - Encuadre 2026**! 
 
-Este proyecto se ha migrado a un estándar Enterprise riguroso. Este documento describe las convenciones, las reglas de arquitectura y el flujo de trabajo sugerido para mantener el código base sólido y altamente tipado.
+Este proyecto se ha migrado a un estándar riguroso. Este documento describe las convenciones, las reglas de arquitectura y el flujo de trabajo sugerido para mantener el código base sólido y altamente tipado.
 
-## 🌿 Flujo de Trabajo (Git Flow)
+## Flujo de Trabajo (Git Flow)
 
 1. **Clona y crea una rama:**
    Nunca trabajes directamente en la rama `main`. Crea una rama desde `main` usando la convención de Git Flow:
@@ -37,7 +37,7 @@ Este proyecto se ha migrado a un estándar Enterprise riguroso. Este documento d
 
 ---
 
-## 🛠️ Estándares de Código y Arquitectura
+## Estándares de Código y Arquitectura
 
 ### 1. TypeScript Estricto
 La aplicación usa `"strict": true` en `tsconfig.json`. Todas las referencias al DOM deben ser casteadas explícitamente y comprobadas (ej. `const btn = document.getElementById('btn') as HTMLButtonElement;`).
@@ -60,7 +60,7 @@ const $modalParticipante = document.getElementById('modal') as HTMLDivElement;
 
 ---
 
-## 🚀 Próximos Desafíos (Roadmap)
+## Próximos Desafíos (Roadmap)
 Si buscas en qué ayudar, aquí tienes los hitos técnicos pendientes para la siguiente etapa de evolución:
 
 - [ ] **Implementar Husky y Lint-Staged:** Prevenir *commits* que no cumplan con el formato de Prettier o que arrojen errores de ESLint.
