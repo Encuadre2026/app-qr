@@ -1,0 +1,30 @@
+{
+  "name": "app-qr",
+  "version": "1.0.0",
+  "description": "Aplicación Web Progresiva (PWA) de una sola página diseñada para llevar el control de asistencia del evento **Encuadre 2026**.",
+  "main": "app.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Encuadre2026/app-qr.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Encuadre2026/app-qr/issues"
+  },
+  "homepage": "https://github.com/Encuadre2026/app-qr#readme",
+  "devDependencies": {
+    "eslint": "^10.4.1",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "vite-plugin-pwa": "^1.3.0"
+  }
+}
