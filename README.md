@@ -1,102 +1,85 @@
-<div align="center">
-  <h1>App QR - Encuadre 2026</h1>
-  <p><b>Aplicación Web Progresiva (PWA) de alto rendimiento para el control de acceso y asistencia.</b></p>
+# App QR — Documentación
 
-  [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-  [![Vite](https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E)](https://vitejs.dev/)
-  [![PWA](https://img.shields.io/badge/PWA-5A0FC8?style=for-the-badge&logo=pwa&logoColor=white)](#)
-  [![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)](#)
-</div>
+Sistema de control de acceso y registro de asistencia por código QR para el 36 FTD Encuadre 2026. Arquitectura basada en una PWA (Vite), Cloudflare Workers (Backend Serverless) y Tipado Estricto (TypeScript).
 
----
+## Resumen ejecutivo
 
-## Descripción del Proyecto
+- **Aplicación PWA**: Aplicación instalable en móviles construida con **Vite** y `vite-plugin-pwa`, con soporte 100% offline y sincronización retardada.
+- **Backend Serverless**: Se comunica con una API central impulsada por **Cloudflare Workers** (compartida con el proyecto principal).
+- **Escaneo Óptimo**: Escáner QR optimizado para reducir ciclos de CPU a través de `html5-qrcode`.
+- **Tipado Estricto & Calidad**: Todo el código cliente está escrito en **TypeScript** con verificación estricta (`strict: true`) y formateo por Prettier/ESLint.
+- **Despliegue Automático**: Integración continua (CI/CD) mediante GitHub Actions con despliegue automático a GitHub Pages.
 
-Esta herramienta es de uso interno exclusivo para el **staff y organizadores** del evento *Encuadre 2026*. Permite escanear códigos QR de los gafetes de los participantes, buscar asistentes manualmente y sincronizar las asistencias con la base de datos principal alojada en **Cloudflare Workers**.
+## Público objetivo
 
-La aplicación fue reconstruida desde cero bajo un estándar riguroso, migrando de un entorno Vanilla JS monolítico a una arquitectura modular estricta con TypeScript, empaquetado optimizado con Vite, e integración continua (CI/CD).
+- Operadores de registro y control de acceso (Staff Encuadre 2026).
+- Desarrollo y mantenimiento técnico.
 
-## Características Principales
-
-- **PWA Nativa:** Instalable en dispositivos móviles (iOS y Android) y de escritorio. Soporte completo offline gracias a Service Workers generados automáticamente por `vite-plugin-pwa`.
-- **Escáner QR Optimizado:** Usa la cámara del dispositivo de forma nativa (`html5-qrcode`) con algoritmos de escaneo eficientes para evitar el calentamiento del dispositivo móvil.
-- **Sincronización Offline:** Si la conexión a internet falla, guarda las asistencias de forma local usando una Offline Queue (Cola fuera de línea) y las sincroniza automáticamente al recuperar la red.
-- **Búsqueda Instantánea:** Buscador en memoria *debounced* que permite encontrar asistentes por ID, nombre o evento sin demoras.
-- **Tipado Estricto:** Código base 100% en TypeScript (`strict: true`), garantizando solidez durante el desarrollo y mantenimiento.
-
----
-
-## Arquitectura de la Aplicación
-
-La aplicación sigue una arquitectura puramente "Cliente" (*Client-Side Rendering*), pero su lógica está fuertemente modularizada:
+## Arquitectura de alto nivel
 
 ```mermaid
-graph TD
-    A[UI / DOM Events<br/>(main.ts)] -->|Types| B(types.ts)
-    A -->|Consume| C(api.ts)
-    A -->|Controla| D(scanner.ts)
-    C <-->|Peticiones| E[(Cloudflare API)]
-    C <-->|Almacenamiento| F[(Offline Queue / LocalStorage)]
-    D <-->|Cámara| G[Dispositivo Móvil]
+graph TD;
+    A["App QR (Frontend PWA)"] -->|GET /api/admin/registros| B("API Central: Cloudflare Worker")
+    A -->|POST /api/asistencia| B
+    
+    A <-->|Almacenamiento Local| C[(Offline Queue / LocalStorage)]
+    A <-->|Cámara / Escáner| D[Dispositivo Móvil]
+
+    B -->|SQL / Sincronización| E[(Neon PostgreSQL)]
 ```
 
-## Instalación y Desarrollo Local
+## Mapa del repositorio
 
-### Prerrequisitos
-- **Node.js** v20 o superior.
-- **npm** v10 o superior.
+- `src/` — Código fuente del frontend (TypeScript, Vite, CSS).
+  - `api.ts` — Manejo de red y lógica de sincronización offline.
+  - `scanner.ts` — Controlador del hardware de la cámara (`html5-qrcode`).
+  - `main.ts` — Control de la UI y flujos de usuario.
+  - `utils.ts` — Utilidades puras y de formateo de datos.
+- `public/` — Recursos estáticos, íconos y manifiestos de la PWA.
+- `.github/workflows/` — Pipeline de CI/CD para compilación y publicación.
+- `tests/` — Pruebas Unitarias con Vitest.
 
-### Pasos
+## Inicio rápido (Desarrollo Local)
 
-1. **Clonar el repositorio**
-   ```bash
-   git clone https://github.com/Encuadre2026/app-qr.git
-   cd "app-qr"
-   ```
+**1. Instalar dependencias:**
 
-2. **Instalar dependencias**
-   ```bash
-   npm install
-   ```
-
-3. **Configurar el entorno**
-   Copia el archivo de ejemplo y crea tu archivo `.env` local:
-   ```bash
-   cp .env.example .env
-   ```
-   *Agrega la clave administrativa en `VITE_ADMIN_SECRET` para poder hacer llamadas a la API.*
-
-4. **Levantar el servidor de desarrollo**
-   ```bash
-   npm run dev
-   ```
-   El proyecto estará disponible en `http://localhost:5173/`. Vite se encargará de compilar TypeScript en tiempo real mediante HMR (Hot Module Replacement).
-
----
-
-## Producción y Despliegue (CI/CD)
-
-El proyecto cuenta con un pipeline automatizado a través de **GitHub Actions**.
-
-1. Cualquier *push* o *merge* a la rama `main` dispara el flujo de trabajo (`.github/workflows/deploy.yml`).
-2. El servidor CI instala dependencias (`npm ci`), verifica tipos y compila la app (`npm run build`).
-3. Si el build es exitoso, los archivos estáticos de la carpeta `dist/` se publican automáticamente en **GitHub Pages** bajo el directorio base `/app-qr/`.
-
-Para construir manualmente para producción:
 ```bash
-npm run build
-npm run preview # Para previsualizar el build generado
+npm install
 ```
 
----
+**2. Configurar variables de entorno:**
+Copia el archivo `.env.example` a `.env` y configura el secreto administrativo.
+```bash
+cp .env.example .env
+```
 
-## Endpoints de la API (BFF)
+**3. Levantar servidor local:**
 
-La aplicación se comunica con un backend Serveless alojado en `encuadre-2026-api.sitio-392.workers.dev`.
+```bash
+npm run dev
+```
 
-| Método | Endpoint | Descripción |
-|---|---|---|
-| `GET` | `/api/admin/registros` | Descarga el listado total de participantes. Usado para poblar la caché de búsqueda manual en memoria. |
-| `POST` | `/api/asistencia` | Envía el ID del participante para marcar su asistencia de forma definitiva en la base de datos principal. |
+**4. Validaciones de calidad:**
 
-> **Nota:** Todos los endpoints requieren autenticación. La app enruta el token secret `VITE_ADMIN_SECRET` mediante un *Bearer Token* en el header `Authorization`.
+```bash
+npm run lint
+npm run test
+npm run build
+```
+
+## Documentación
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Diseño de componentes, PWA y cola offline.
+- [API_REFERENCE.md](API_REFERENCE.md) - Endpoints y payloads consumidos por la aplicación.
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Pipeline de CI/CD, GitHub Actions y Despliegue.
+- [SECURITY.md](SECURITY.md) - Políticas de seguridad, manejo de secretos y sesiones de la PWA.
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Flujo Git, estilos de código y Vitest.
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Solución a problemas con cámaras, permisos o modo offline.
+- [MAINTAINERS.md](MAINTAINERS.md) - Contactos y responsabilidades.
+- [CHANGELOG.md](CHANGELOG.md) - Registro histórico de versiones y migración.
+- [LICENSE](LICENSE) - Licencia propietaria.
+
+## Enlaces de producción
+
+- App QR (PWA): https://encuadre2026.github.io/app-qr/
+- API backend: https://encuadre-2026-api.sitio-392.workers.dev
