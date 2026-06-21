@@ -19,13 +19,12 @@ Sistema de control de acceso y registro de asistencia por código QR para el 36 
 
 ```mermaid
 graph TD;
-    A["App QR (Frontend PWA)"] -->|GET /api/admin/registros| B("API Central: Cloudflare Worker")
-    A -->|POST /api/asistencia| B
+    A["App QR (Frontend PWA)"] -->|Peticiones API| B("API Central: Cloudflare Worker")
     
-    A <-->|Almacenamiento Local| C[(Offline Queue / LocalStorage)]
-    A <-->|Cámara / Escáner| D[Dispositivo Móvil]
+    A <-->|Caché Local| C[(Offline Queue)]
+    A <-->|Hardware| D[Cámara Móvil]
 
-    B -->|SQL / Sincronización| E[(Neon PostgreSQL)]
+    B -->|Sincronización| E[(Neon PostgreSQL)]
 ```
 
 ## Mapa del repositorio
