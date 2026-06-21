@@ -19,5 +19,5 @@ El proyecto usa Vite como empaquetador para generar una aplicación de una sola 
 ## Resiliencia Offline (Offline Queue)
 Uno de los pilares de la arquitectura es su capacidad offline. Si el dispositivo pierde conexión al marcar una asistencia:
 - El ID del asistente se almacena en el arreglo `OfflineQueueItem[]` en `localStorage`.
-- Se muestra un icono indicador (⏳) al operador en la UI.
+- Se muestra un icono indicador de espera al operador en la UI.
 - Un evento `window.addEventListener('online')` se mantiene activo. En cuanto se detecta conexión, la función `syncOfflineQueue` procesa secuencialmente todas las asistencias pendientes hacia la base de datos de Neon.
