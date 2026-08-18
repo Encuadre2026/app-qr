@@ -36,9 +36,13 @@ jobs:
       # un archivo JavaScript público. Ahora el acceso se obtiene tecleando un
       # PIN, que el Worker canjea por un token temporal.
       #
-      # El secreto VITE_ADMIN_SECRET del repositorio se puede borrar.
-      - name: Build
-        run: npm run build
+      # `verificar` comprueba los tipos, ejecuta las pruebas, compila y revisa
+      # que el paquete resultante no lleve credenciales dentro. Antes esto solo
+      # compilaba: las pruebas existían y no las ejecutaba nadie, y nada miraba
+      # el resultado de la compilación, que es justo donde el secreto era
+      # visible. Si algo falla, no se publica.
+      - name: Verificar y compilar
+        run: npm run verificar
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Upload artifact
