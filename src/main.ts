@@ -1,8 +1,18 @@
 import './style.css';
-import { PIN_SESSION_KEY, SEARCH_DEBOUNCE_MS } from './config';
+import { LARGO_PIN, SEARCH_DEBOUNCE_MS } from './config';
 import { Participante } from './types';
 import { formatearFecha, getInitials, esc, playBeep, obtenerFechaActualStr } from './utils';
-import { fetchParticipantes, marcarAsistenciaAPI, addToOfflineQueue, syncOfflineQueue, getOfflineQueue } from './api';
+import {
+  ErrorApi,
+  addToOfflineQueue,
+  fetchParticipantes,
+  getOfflineQueue,
+  haySesion,
+  iniciarSesion,
+  marcarAsistenciaAPI,
+  olvidarSesion,
+  syncOfflineQueue,
+} from './api';
 import { startScanner, stopScanner, pauseScanner, resumeScanner, isScannerActive } from './scanner';
 
 // ── Estado ─────────────────────────────────────────────
@@ -12,6 +22,7 @@ let participantesCache: Participante[] = [];
 let cacheLoaded = false;
 let lastSearchResults: Participante[] = [];
 let pinCode = '';
+let verificandoPin = false;
 let detailCurrentId = '';
 
 // ── Elementos DOM ──────────────────────────────────────
@@ -47,10 +58,7 @@ const $detailAvatar = document.getElementById('detail-avatar') as HTMLDivElement
 const $detailName = document.getElementById('detail-name') as HTMLHeadingElement;
 const $detailId = document.getElementById('detail-id') as HTMLSpanElement;
 const $detailEvento = document.getElementById('detail-evento') as HTMLTableCellElement;
-const $detailCorreo = document.getElementById('detail-correo') as HTMLTableCellElement;
-const $detailCurp = document.getElementById('detail-curp') as HTMLTableCellElement;
 const $detailInstitucion = document.getElementById('detail-institucion') as HTMLTableCellElement;
-const $detailTelefono = document.getElementById('detail-telefono') as HTMLTableCellElement;
 const $detailPerfil = document.getElementById('detail-perfil') as HTMLTableCellElement;
 const $detailAsistencia = document.getElementById('detail-asistencia') as HTMLTableCellElement;
 const $detailAsistenciaRow = document.getElementById('detail-asistencia-row') as HTMLTableRowElement;
@@ -61,7 +69,12 @@ const $detailBtnMarcar = document.getElementById('detail-btn-marcar') as HTMLBut
 //  PIN
 // ════════════════════════════════════════════════════════
 
-if (sessionStorage.getItem(PIN_SESSION_KEY) === '1') {
+// El PIN ya no se compara aquí. Estaba escrito en el código —`pin === '2026'`,
+// el año del evento— y por tanto viajaba en el paquete público, igual que el
+// secreto de administración: no protegía nada, solo tapaba la pantalla. Ahora
+// se envía al Worker, que lo valida contra un secreto que nunca sale de allí y
+// devuelve un token temporal.
+if (haySesion()) {
   showApp();
 }
 
@@ -70,7 +83,7 @@ if (keypad) {
   keypad.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
     const btn = target.closest('.key') as HTMLButtonElement;
-    if (!btn) return;
+    if (!btn || verificandoPin) return;
     const key = btn.getAttribute('data-key');
     if (!key) return;
 
@@ -80,13 +93,11 @@ if (keypad) {
       return;
     }
 
-    if (pinCode.length >= 4) return;
+    if (pinCode.length >= LARGO_PIN) return;
     pinCode += key;
     updatePinDots();
 
-    if (pinCode.length === 4) {
-      $pinError.style.color = 'var(--text-secondary)';
-      $pinError.textContent = 'Verificando...';
+    if (pinCode.length === LARGO_PIN) {
       validatePin(pinCode);
     }
   });
@@ -101,22 +112,40 @@ function updatePinDots() {
   $pinError.textContent = '';
 }
 
-function validatePin(pin: string) {
-  $pinError.style.color = ''; 
-  if (pin === '2026') {
-    sessionStorage.setItem(PIN_SESSION_KEY, '1');
-    showApp();
-  } else {
+/** Vacía los puntitos y los marca en rojo un instante. */
+function rechazarPin(mensaje: string) {
+  pinCode = '';
+  const dots = $pinDots.querySelectorAll('.dot');
+  dots.forEach((dot) => {
+    dot.classList.remove('filled');
+    dot.classList.add('error');
+  });
+  $pinError.style.color = '';
+  $pinError.textContent = mensaje;
+  setTimeout(() => {
+    dots.forEach((dot) => dot.classList.remove('error'));
+  }, 600);
+}
+
+async function validatePin(pin: string) {
+  verificandoPin = true;
+  $pinError.style.color = 'var(--text-secondary)';
+  $pinError.textContent = 'Verificando...';
+
+  try {
+    await iniciarSesion(pin);
     pinCode = '';
-    const dots = $pinDots.querySelectorAll('.dot');
-    dots.forEach((dot) => {
-      dot.classList.remove('filled');
-      dot.classList.add('error');
-    });
-    $pinError.textContent = 'PIN incorrecto';
-    setTimeout(() => {
-      dots.forEach((dot) => dot.classList.remove('error'));
-    }, 600);
+    $pinError.textContent = '';
+    showApp();
+  } catch (err) {
+    // El servidor distingue entre un PIN equivocado, demasiados intentos y no
+    // haber podido hablar con él. Antes los tres casos habrían sido el mismo
+    // «PIN incorrecto», que manda a la persona a probar otro PIN cuando el
+    // problema puede estar en la red o en que hay que esperar un minuto.
+    const fallo = err instanceof ErrorApi ? err : new ErrorApi('No se pudo verificar el PIN.');
+    rechazarPin(fallo.message);
+  } finally {
+    verificandoPin = false;
   }
 }
 
@@ -190,33 +219,49 @@ function onQrScanned(decodedText: string) {
 //  SEARCH (local cache)
 // ════════════════════════════════════════════════════════
 
-function cargarParticipantes() {
-  fetchParticipantes()
-    .then((data) => {
-      participantesCache = [];
-      if (data && data.registros) {
-        data.registros.forEach((reg) => {
-          participantesCache.push({
-            id: reg.id_participante,
-            nombre: reg.nombre,
-            evento: reg.taller,
-            correo: reg.correo,
-            curp: reg.curp,
-            telefono: reg.telefono,
-            institucion: reg.institucion,
-            perfil: reg.perfil,
-            asistencia: reg.asistio ? formatearFecha(reg.fecha_asistencia) : null
-          });
-        });
-      }
-      cacheLoaded = true;
-      if ($tabSearch.classList.contains('active')) {
-        onSearchInput();
-      }
-    })
-    .catch((error) => {
-      console.error('Error API:', error);
-    });
+async function cargarParticipantes() {
+  try {
+    const data = await fetchParticipantes();
+    participantesCache = data.participantes.map((reg) => ({
+      id: reg.id_participante,
+      nombre: reg.nombre,
+      evento: reg.taller,
+      institucion: reg.institucion,
+      perfil: reg.perfil,
+      asistencia: reg.asistio ? formatearFecha(reg.fecha_asistencia) : null,
+    }));
+    cacheLoaded = true;
+    if ($tabSearch.classList.contains('active')) {
+      onSearchInput();
+    }
+  } catch (err) {
+    // Antes esto solo hacía `console.error`, así que si la carga fallaba la
+    // app se quedaba con la búsqueda vacía y sin decir por qué.
+    console.error('Error API:', err);
+    if (err instanceof ErrorApi && err.esSesionInvalida) {
+      volverAlPin('Tu sesión expiró. Vuelve a introducir el PIN.');
+      return;
+    }
+    if ($tabSearch.classList.contains('active')) {
+      showSearchEmpty(
+        err instanceof ErrorApi ? err.message : 'No se pudieron cargar los participantes.'
+      );
+    }
+  }
+}
+
+/** Cierra la sesión y devuelve al teclado, explicando por qué. */
+function volverAlPin(motivo: string) {
+  stopScanner();
+  olvidarSesion();
+  participantesCache = [];
+  cacheLoaded = false;
+  pinCode = '';
+  $mainApp.classList.remove('active');
+  $pinScreen.classList.add('active');
+  updatePinDots();
+  $pinError.style.color = '';
+  $pinError.textContent = motivo;
 }
 
 function onSearchInput() {
@@ -309,10 +354,7 @@ function showDetail(p: Participante) {
   $detailName.textContent = p.nombre;
   $detailId.textContent = p.id;
   $detailEvento.textContent = p.evento || '—';
-  $detailCorreo.textContent = p.correo || '—';
-  $detailCurp.textContent = p.curp || '—';
   $detailInstitucion.textContent = p.institucion || '—';
-  $detailTelefono.textContent = p.telefono || '—';
   $detailPerfil.textContent = p.perfil || '—';
   detailCurrentId = p.id;
 
@@ -368,6 +410,7 @@ function markAttendance(id: string) {
   }
 
   const ahoraStr = obtenerFechaActualStr();
+  const asistenciaPrevia = p.asistencia;
   actualizarCacheLocal(id, ahoraStr);
 
   if (navigator.onLine) {
@@ -376,11 +419,31 @@ function markAttendance(id: string) {
          isProcessing = false;
          showResult('success', p!.nombre, p!.evento || '', 'Asistencia registrada ✓', ahoraStr);
       })
-      .catch(() => {
+      .catch((err) => {
          isProcessing = false;
-         addToOfflineQueue({ id, asistencia: ahoraStr });
-         updateOfflineBadge();
-         showResult('offline-queued', p!.nombre, p!.evento || '', 'Guardado sin conexión (Error de red)', ahoraStr);
+         const fallo = err instanceof ErrorApi ? err : new ErrorApi('No se pudo registrar la asistencia.');
+
+         // Solo se encola lo que falló por falta de red. Antes se encolaba
+         // cualquier fallo y se anunciaba como «guardado sin conexión»: una
+         // sesión caducada o un participante inexistente quedaban en la cola
+         // para siempre mientras al personal se le decía que había quedado
+         // registrado.
+         if (fallo.esDeRed) {
+           addToOfflineQueue({ id, asistencia: ahoraStr });
+           updateOfflineBadge();
+           showResult('offline-queued', p!.nombre, p!.evento || '', 'Guardado sin conexión', ahoraStr);
+           return;
+         }
+
+         // No se registró, así que la marca optimista de la caché se deshace.
+         actualizarCacheLocal(id, asistenciaPrevia);
+
+         if (fallo.esSesionInvalida) {
+           volverAlPin('Tu sesión expiró. Vuelve a introducir el PIN.');
+           return;
+         }
+
+         showResult('error', p!.nombre, p!.evento || '', fallo.message, '');
       });
   } else {
     isProcessing = false;
@@ -390,7 +453,7 @@ function markAttendance(id: string) {
   }
 }
 
-function actualizarCacheLocal(id: string, valorAsistencia: string) {
+function actualizarCacheLocal(id: string, valorAsistencia: string | null) {
   const cacheItem = participantesCache.find(x => x.id === id);
   if (cacheItem) {
     cacheItem.asistencia = valorAsistencia;
@@ -457,7 +520,7 @@ window.addEventListener('online', () => {
 
 $btnLogout.addEventListener('click', () => {
   stopScanner();
-  sessionStorage.removeItem(PIN_SESSION_KEY);
+  olvidarSesion();
   $mainApp.classList.remove('active');
   $pinScreen.classList.add('active');
   pinCode = '';

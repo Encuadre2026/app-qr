@@ -6,14 +6,14 @@ La aplicación se comunica exclusivamente con el backend Serverless (Cloudflare 
 
 ## Autenticación
 Todas las peticiones requieren un token de autenticación en los *Headers*:
-`Authorization: Bearer <VITE_ADMIN_SECRET>`
+`Authorization: Bearer <token de staff>`, obtenido en `POST /api/staff/sesion` con el PIN.
 
 ---
 
 ## 1. Descargar Participantes
 Descarga la totalidad de los registros para la búsqueda en memoria (caché local).
 
-- **Endpoint:** `/api/admin/registros`
+- **Endpoint:** `/api/staff/participantes` (padrón reducido: sin CURP, teléfono ni correo)
 - **Método:** `GET`
 - **Headers:** `Authorization: Bearer <TOKEN>`
 

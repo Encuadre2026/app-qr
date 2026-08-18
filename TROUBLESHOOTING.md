@@ -8,7 +8,7 @@ Esta guía ayuda a solucionar los problemas más frecuentes que podrían surgir 
 
 ## 2. No descarga la lista de participantes ("Cargando...")
 - **Causa:** El secreto administrativo en `.env` es incorrecto o falta en los secretos de GitHub Actions. También podría deberse a una caída de la red en ese instante preciso.
-- **Solución (Desarrollador):** Verifica que tienes `VITE_ADMIN_SECRET` con el valor exacto en el archivo `.env`. Si es la versión en producción, verifica los *Repository Secrets*.
+- **Solución (Desarrollador):** El acceso ya no depende de ninguna variable de entorno. Si la app pide el PIN una y otra vez, comprueba que el secreto `STAFF_PIN` del Worker son seis dígitos exactos; si responde «Demasiados intentos», espera lo que indique el mensaje.
 
 ## 3. La interfaz se congeló en una versión anterior (PWA)
 - **Causa:** El Service Worker está reteniendo agresivamente la versión vieja del sitio en caché.
