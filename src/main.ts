@@ -1,5 +1,6 @@
 import './style.css';
 import { LARGO_PIN, SEARCH_DEBOUNCE_MS } from './config';
+import { VERSION, vigilarActualizaciones } from './actualizacion';
 import { Participante } from './types';
 import { formatearFecha, getInitials, esc, playBeep, obtenerFechaActualStr } from './utils';
 import {
@@ -64,6 +65,11 @@ const $detailAsistencia = document.getElementById('detail-asistencia') as HTMLTa
 const $detailAsistenciaRow = document.getElementById('detail-asistencia-row') as HTMLTableRowElement;
 const $detailBtnMarcar = document.getElementById('detail-btn-marcar') as HTMLButtonElement;
 
+
+vigilarActualizaciones();
+
+const $version = document.getElementById('app-version');
+if ($version) $version.textContent = `v${VERSION}`;
 
 // ════════════════════════════════════════════════════════
 //  PIN

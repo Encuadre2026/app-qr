@@ -32,3 +32,23 @@ que pasó con `VITE_ADMIN_SECRET` hasta agosto de 2026—.
 La solución no es silenciar la comprobación ni renombrar la variable: es no
 mandar credenciales al build. El acceso se obtiene tecleando el PIN, que el
 Worker canjea por un token temporal guardado en `sessionStorage`.
+
+## La app muestra una versión vieja
+
+La pantalla del PIN enseña abajo la versión que está corriendo. Si un teléfono
+no coincide con la desplegada, tiene la anterior en la caché del service worker.
+
+Desde agosto de 2026 esto se corrige solo: al entrar una versión nueva, la app
+se recarga sin que nadie haga nada, y comprueba si hay una cada vez que vuelve
+al primer plano. Antes no lo hacía, y pasó lo siguiente: se desplegó el acceso
+por PIN y en el teléfono seguía la versión anterior; cerrar la app y reabrirla
+no bastó. Peor, esa versión vieja pedía el padrón con un secreto ya rotado, se
+callaba el error y dejaba la lista vacía, de modo que **cualquier QR escaneado
+salía como «no encontrado en la base de datos»**.
+
+Si aun así hiciera falta forzarlo, la salida de emergencia es abrir la URL con
+un parámetro cualquiera:
+
+    https://encuadre2026.github.io/app-qr/?v=2
+
+Ese parámetro no coincide con nada precacheado, así que obliga a ir a la red.
