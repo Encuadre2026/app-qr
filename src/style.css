@@ -888,3 +888,14 @@ body {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* Versión visible en la pantalla del PIN. Discreta, pero legible por teléfono:
+   sirve para saber si un dispositivo se quedó con una versión vieja en caché. */
+.app-version {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  opacity: 0.55;
+}

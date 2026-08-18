@@ -1,12 +1,22 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { readFileSync } from 'node:fs';
+
+// La versión visible en la app. Sirve para saber de un vistazo —y por teléfono,
+// preguntándoselo a quien está en la puerta— si un dispositivo quedó con una
+// versión vieja en caché, que es exactamente lo que costó una tarde averiguar.
+const { version } = JSON.parse(readFileSync('./package.json', 'utf8'));
+const SELLO = `${version}+${new Date().toISOString().slice(0, 16).replace('T', ' ')}`;
 
 export default defineConfig({
   test: {
     environment: 'jsdom',
   },
   base: '/app-qr/',
+  define: {
+    __VERSION_APP__: JSON.stringify(SELLO),
+  },
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
