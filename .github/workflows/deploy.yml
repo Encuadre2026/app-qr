@@ -30,10 +30,15 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
+      # Ya no se le pasa ninguna credencial al build. `VITE_ADMIN_SECRET` iba
+      # aquí, y Vite incrusta las variables `VITE_*` en el paquete que descarga
+      # el navegador: el secreto que abría el padrón completo viajaba dentro de
+      # un archivo JavaScript público. Ahora el acceso se obtiene tecleando un
+      # PIN, que el Worker canjea por un token temporal.
+      #
+      # El secreto VITE_ADMIN_SECRET del repositorio se puede borrar.
       - name: Build
         run: npm run build
-        env:
-          VITE_ADMIN_SECRET: ${{ secrets.VITE_ADMIN_SECRET }}
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Upload artifact
