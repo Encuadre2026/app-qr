@@ -1,0 +1,37 @@
+name: Verificación
+
+# El workflow de despliegue solo corre al empujar a `main`, así que en un pull
+# request no se ejecutaba absolutamente nada: ni los tipos ni las pruebas. Este
+# corre donde sirve enterarse, antes de mergear.
+on:
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Comprobación de tipos
+        run: npm run typecheck
+
+      - name: Pruebas
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # Deliberadamente NO se le pasa ninguna variable de entorno al build de
+      # arriba. Si alguien vuelve a introducir una credencial, este paso lo ve.
+      - name: Revisar que el paquete no lleve credenciales
+        run: npm run revisar:paquete

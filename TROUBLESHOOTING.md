@@ -17,3 +17,18 @@ Esta guía ayuda a solucionar los problemas más frecuentes que podrían surgir 
 ## 4. Las asistencias marcadas offline no se sincronizaron
 - **Causa:** Se perdió la sesión, la pestaña se cerró forzosamente antes de recuperar la señal, o los datos de LocalStorage se corrompieron.
 - **Solución:** Abre la pestaña en una zona con Wi-Fi estable. Revisa el contador naranja en la esquina superior; debería desaparecer cuando termine de enviar los datos encolados. Nunca borres el caché del celular si tienes asistencias pendientes de sincronizar.
+
+## El despliegue falla con «El paquete contiene credenciales»
+
+`npm run verificar` revisa el JavaScript compilado antes de publicarlo y aborta
+si encuentra una credencial dentro. No es un falso positivo: lo que ese paso
+mira es el archivo que descarga cualquiera que abra la app.
+
+Casi siempre significa que alguien escribió `import.meta.env.VITE_ALGO` en una
+cabecera de autorización. Vite sustituye esas variables por su valor **en tiempo
+de compilación**, así que el secreto acaba en un archivo público —exactamente lo
+que pasó con `VITE_ADMIN_SECRET` hasta agosto de 2026—.
+
+La solución no es silenciar la comprobación ni renombrar la variable: es no
+mandar credenciales al build. El acceso se obtiene tecleando el PIN, que el
+Worker canjea por un token temporal guardado en `sessionStorage`.
