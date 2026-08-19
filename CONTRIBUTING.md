@@ -31,7 +31,11 @@ El proyecto debe mantener los mismos estándares de código, seguridad y calidad
    ```
 
 4. **Sube tu rama y crea un Pull Request (PR):**
-   - Asegúrate de correr `npm run test` y `npm run build` localmente antes de empujar.
+   - Corre `npm run verificar` antes de empujar. Es lo mismo que ejecuta CI:
+     tipos, pruebas, compilación y revisión del paquete compilado.
+   - Ese último paso comprueba que no haya credenciales dentro del JavaScript
+     publicado. Si falla, la solución no es silenciarlo ni renombrar la
+     variable: es no mandar secretos al build.
    - Abre el PR hacia la rama `main`.
    - GitHub Actions se ejecutará para validar tu código y construir el proyecto.
 
@@ -59,6 +63,6 @@ Se aplican las mismas reglas de formateo que en el backend central. Tu IDE debe 
 
 ## Próximos Desafíos (Roadmap)
 
-- [ ] **Hooks de Husky:** Bloquear commits si `npm run test` falla.
+- [ ] **Hooks de Husky:** Bloquear commits si `npm run verificar` falla.
 - [ ] **Manejo de Estado Global:** Si la PWA crece más, implementar *Zustand* u otra alternativa ultraligera.
 - [ ] **E2E Testing:** Explorar Playwright para pruebas de la PWA emulando un móvil.

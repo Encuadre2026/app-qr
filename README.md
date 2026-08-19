@@ -24,19 +24,22 @@ graph TD;
     A <-->|Caché Local| C[(Offline Queue)]
     A <-->|Hardware| D[Cámara Móvil]
 
-    B -->|Sincronización| E[(Neon PostgreSQL)]
+    B -->|SQL| E[(Cloudflare D1)]
 ```
 
 ## Mapa del repositorio
 
 - `src/` — Código fuente del frontend (TypeScript, Vite, CSS).
-  - `api.ts` — Manejo de red y lógica de sincronización offline.
-  - `scanner.ts` — Controlador del hardware de la cámara (`html5-qrcode`).
-  - `main.ts` — Control de la UI y flujos de usuario.
-  - `utils.ts` — Utilidades puras y de formateo de datos.
-- `public/` — Recursos estáticos, íconos y manifiestos de la PWA.
-- `.github/workflows/` — Pipeline de CI/CD para compilación y publicación.
-- `tests/` — Pruebas Unitarias con Vitest.
+  - `api.ts` — Sesión, red y cola sin conexión. Traduce los errores del servidor.
+  - `actualizacion.ts` — Detecta versiones nuevas y recarga la app.
+  - `scanner.ts` — Controlador de la cámara (`html5-qrcode`).
+  - `main.ts` — Control de la interfaz y flujos de usuario.
+  - `utils.ts` — Utilidades puras y de formateo.
+  - `config.ts` — Constantes. **No contiene ninguna credencial.**
+- `public/` — Recursos estáticos, iconos y manifiesto de la PWA.
+- `scripts/revisar-paquete.mjs` — Revisa el paquete compilado en busca de credenciales.
+- `.github/workflows/` — Verificación en el PR y publicación desde `main`.
+- `tests/` — Pruebas unitarias con Vitest.
 
 ## Inicio rápido (Desarrollo Local)
 
@@ -46,11 +49,13 @@ graph TD;
 npm install
 ```
 
-**2. Configurar variables de entorno:**
-Copia el archivo `.env.example` a `.env` y configura el secreto administrativo.
-```bash
-cp .env.example .env
-```
+**2. Variables de entorno:**
+No hace falta ninguna. La app **no recibe credenciales en tiempo de compilación**:
+el acceso se obtiene tecleando el PIN, que el Worker canjea por un token temporal.
+
+Cualquier variable `VITE_*` acabaría dentro del paquete público —así se filtró el
+`ADMIN_SECRET` hasta agosto de 2026—, y `npm run revisar:paquete` falla si
+aparece alguna.
 
 **3. Levantar servidor local:**
 
@@ -61,9 +66,17 @@ npm run dev
 **4. Validaciones de calidad:**
 
 ```bash
-npm run lint
-npm run test
+npm run verificar   # tipos, pruebas, compilación y revisión del paquete
+```
+
+Es exactamente lo que ejecuta CI, en el pull request y como puerta antes de
+publicar. Por separado:
+
+```bash
+npm run typecheck
+npm test
 npm run build
+npm run revisar:paquete
 ```
 
 ## Documentación
