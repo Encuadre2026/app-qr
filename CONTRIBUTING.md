@@ -57,7 +57,9 @@ La aplicación requiere validación de nulos y verificación de tipos en cada pa
 El proyecto usa **Vitest**. Cualquier adición a `src/utils.ts` o la lógica de Offline Queue en `src/api.ts` debe venir acompañada de un archivo de prueba correspondiente en el directorio `tests/` (ej. `tests/utils.test.ts`).
 
 ### 4. ESLint y Prettier
-Se aplican las mismas reglas de formateo que en el backend central. Tu IDE debe estar configurado para formatear al guardar. No alteres manualmente las reglas en `.prettierrc` sin discutirlas con el equipo.
+Las reglas de ESLint viven en `eslint.config.mjs` (flat config, la única que lee ESLint 10) y son las mismas que usa el Portal del Participante. `npm run lint` es parte de `npm run verificar`, y CI lo ejecuta tanto en cada pull request como antes de desplegar: si falla, no se publica.
+
+Para el formato, `npm run format` aplica Prettier sobre `src/`. Tu IDE debe estar configurado para formatear al guardar. No alteres manualmente las reglas en `.prettierrc` sin discutirlas con el equipo.
 
 ---
 

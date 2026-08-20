@@ -22,7 +22,12 @@ let audioCtx: AudioContext | null = null;
 export function playBeep(): void {
   try {
     if (!audioCtx) {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      // Safari por debajo de la 14.1 solo expone el constructor con prefijo, y
+      // lib.dom no lo declara. Se tipa en lugar de recurrir a `any` para que
+      // `new AudioContextClass()` siga comprobándose.
+      const AudioContextClass =
+        window.AudioContext ??
+        (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (AudioContextClass) {
         audioCtx = new AudioContextClass();
       }

@@ -19,11 +19,17 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
+
+      # El linter llevaba tiempo sin ejecutarse: la configuración estaba en el
+      # formato antiguo, que ESLint 10 ni lee, apuntaba a un plugin que no
+      # estaba instalado, y no había script que lo invocara.
+      - name: Linter
+        run: npm run lint
 
       - name: Comprobación de tipos
         run: npm run typecheck
