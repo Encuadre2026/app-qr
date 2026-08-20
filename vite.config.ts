@@ -1,5 +1,6 @@
-/// <reference types="vitest" />
-import { defineConfig } from 'vite';
+// `defineConfig` viene de `vitest/config`, no de `vite`: el de vite no conoce
+// la clave `test` y el typecheck la rechaza.
+import { defineConfig } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
 import { readFileSync } from 'node:fs';
 

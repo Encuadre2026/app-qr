@@ -124,19 +124,26 @@ describe('iniciarSesion', () => {
 describe('llamadas autenticadas', () => {
   it('envían el token, no ninguna credencial fija', async () => {
     sessionStorage.setItem('qr_asistencia_staff_token', 'un.token');
-    const espia = vi.fn(async () => respuesta(200, { ok: true, participantes: [] }));
+    // Se declaran los parámetros aunque no se usen: sin ellos `mock.calls` se
+    // infiere como tupla vacía y las aserciones sobre los argumentos no
+    // comprueban nada.
+    const espia = vi.fn(async (_url: string, _opciones: RequestInit) =>
+      respuesta(200, { ok: true, participantes: [] })
+    );
     vi.stubGlobal('fetch', espia);
 
     await fetchParticipantes();
 
-    const [url, opciones] = espia.mock.calls[0] as [string, RequestInit];
+    const [url, opciones] = espia.mock.calls[0];
     expect(url).toContain('/api/staff/participantes');
     expect((opciones.headers as Record<string, string>).Authorization).toBe('Bearer un.token');
   });
 
   it('piden el padrón reducido, no el del panel de administración', async () => {
     sessionStorage.setItem('qr_asistencia_staff_token', 'un.token');
-    const espia = vi.fn(async () => respuesta(200, { ok: true, participantes: [] }));
+    const espia = vi.fn(async (_url: string) =>
+      respuesta(200, { ok: true, participantes: [] })
+    );
     vi.stubGlobal('fetch', espia);
 
     await fetchParticipantes();

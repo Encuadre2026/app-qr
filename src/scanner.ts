@@ -7,10 +7,6 @@ export function isScannerActive(): boolean {
   return scannerActive;
 }
 
-export function getScanner(): Html5Qrcode | null {
-  return qrScanner;
-}
-
 export function startScanner(
   onQrScanned: (decodedText: string) => void,
   onHintUpdate: (msg: string) => void,
