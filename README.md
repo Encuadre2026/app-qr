@@ -89,7 +89,6 @@ npm run revisar:paquete
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Solución a problemas con cámaras, permisos o modo offline.
 - [MAINTAINERS.md](MAINTAINERS.md) - Contactos y responsabilidades.
 - [CHANGELOG.md](CHANGELOG.md) - Registro histórico de versiones y migración.
-- [LICENSE](LICENSE) - Licencia propietaria.
 
 ## Enlaces de producción
 
