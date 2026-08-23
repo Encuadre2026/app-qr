@@ -24,8 +24,6 @@
     "qr",
     "control-de-acceso"
   ],
-  "author": "Universidad Autónoma de Aguascalientes",
-  "license": "UNLICENSED",
   "type": "module",
   "engines": {
     "node": ">=22"
