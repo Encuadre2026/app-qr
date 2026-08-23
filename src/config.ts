@@ -1,4 +1,17 @@
-export const API_URL = 'https://encuadre-2026-api.sitio-392.workers.dev';
+/**
+ * A qué API habla esta app.
+ *
+ * Sale de `VITE_API_URL` cuando está definida, con la de esta edición como
+ * respaldo. Cada edición del Encuentro despliega su propio Worker, así que
+ * tenerla escrita aquí obligaba a editar código para cambiar de sede — y el
+ * `.env.example` ya la anunciaba como la única variable admisible en este
+ * paquete, porque una URL pública no es una credencial.
+ *
+ * `revisar:paquete` no la bloquea: solo se opone a las `VITE_*` cuyo nombre
+ * lleve SECRET, TOKEN, KEY, PASS o PIN.
+ */
+export const API_URL =
+  import.meta.env.VITE_API_URL || 'https://encuadre-2026-api.sitio-392.workers.dev';
 
 // Aquí vivía `ADMIN_SECRET = import.meta.env.VITE_ADMIN_SECRET`. Vite incrusta
 // las variables `VITE_*` en el paquete que descarga el navegador, así que la
