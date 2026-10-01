@@ -5,6 +5,19 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+
+- **Quien se inscribe después de teclear el PIN ya no sale «no encontrado».**
+  El padrón se cargaba una sola vez, al entrar, y la sesión dura doce horas: al
+  escanear el QR de alguien inscrito después —por ejemplo, en un taller recién
+  agregado desde el panel— la app decía «ID no encontrado en la base de datos»
+  aunque el registro existiera. Ahora, ante un ID que no tiene, pide el padrón
+  otra vez antes de rechazarlo. Sin red se comporta como antes.
+- **Los cambios del panel llegan sin volver a entrar.** Al volver a la app
+  —después de contestar un mensaje, por ejemplo— se pide el padrón otra vez,
+  como mucho una vez por minuto, así que un taller renombrado aparece con su
+  nombre nuevo. Dos cargas que coinciden se juntan en una sola petición.
+
 ### Seguridad
 
 - **Ninguna credencial dentro del paquete.** La app se autenticaba con

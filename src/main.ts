@@ -15,12 +15,17 @@ import {
   syncOfflineQueue,
 } from './api';
 import { startScanner, stopScanner, pauseScanner, resumeScanner, isScannerActive } from './scanner';
+import { buscarConRecarga, tocaRecargar } from './padron';
 
 // ── Estado ─────────────────────────────────────────────
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 let isProcessing = false;
 let participantesCache: Participante[] = [];
 let cacheLoaded = false;
+/** Cuándo se cargó el padrón por última vez, para no pedirlo a cada rato. */
+let ultimaCarga: number | null = null;
+/** La carga en curso, para que dos peticiones a la vez no pidan el padrón dos veces. */
+let cargaEnCurso: Promise<boolean> | null = null;
 let lastSearchResults: Participante[] = [];
 let pinCode = '';
 let verificandoPin = false;
@@ -205,6 +210,14 @@ document.addEventListener('visibilitychange', () => {
       $cameraPrompt.classList.remove('hidden');
       $scannerHint.textContent = 'Cámara en pausa - Toca para reanudar';
     }
+    return;
+  }
+
+  // Al volver a la app se pide el padrón otra vez, como mucho una vez por
+  // minuto: así llegan los talleres editados desde el panel y la gente que se
+  // inscribió mientras el teléfono estaba en otra cosa.
+  if ($mainApp.classList.contains('active') && haySesion() && tocaRecargar(ultimaCarga, Date.now())) {
+    cargarParticipantes();
   }
 });
 
@@ -225,7 +238,20 @@ function onQrScanned(decodedText: string) {
 //  SEARCH (local cache)
 // ════════════════════════════════════════════════════════
 
-async function cargarParticipantes() {
+/**
+ * Pide el padrón y lo deja en la caché local. Devuelve si salió bien.
+ *
+ * Si ya hay una carga en marcha, espera a esa en vez de lanzar otra: al volver
+ * a la app y escanear enseguida coinciden las dos.
+ */
+function cargarParticipantes(): Promise<boolean> {
+  cargaEnCurso ??= pedirParticipantes().finally(() => {
+    cargaEnCurso = null;
+  });
+  return cargaEnCurso;
+}
+
+async function pedirParticipantes(): Promise<boolean> {
   try {
     const data = await fetchParticipantes();
     participantesCache = data.participantes.map((reg) => ({
@@ -237,22 +263,25 @@ async function cargarParticipantes() {
       asistencia: reg.asistio ? formatearFecha(reg.fecha_asistencia) : null,
     }));
     cacheLoaded = true;
+    ultimaCarga = Date.now();
     if ($tabSearch.classList.contains('active')) {
       onSearchInput();
     }
+    return true;
   } catch (err) {
     // Antes esto solo hacía `console.error`, así que si la carga fallaba la
     // app se quedaba con la búsqueda vacía y sin decir por qué.
     console.error('Error API:', err);
     if (err instanceof ErrorApi && err.esSesionInvalida) {
       volverAlPin('Tu sesión expiró. Vuelve a introducir el PIN.');
-      return;
+      return false;
     }
     if ($tabSearch.classList.contains('active')) {
       showSearchEmpty(
         err instanceof ErrorApi ? err.message : 'No se pudieron cargar los participantes.'
       );
     }
+    return false;
   }
 }
 
@@ -262,6 +291,7 @@ function volverAlPin(motivo: string) {
   olvidarSesion();
   participantesCache = [];
   cacheLoaded = false;
+  ultimaCarga = null;
   pinCode = '';
   $mainApp.classList.remove('active');
   $pinScreen.classList.add('active');
@@ -397,18 +427,42 @@ $detailBtnMarcar.addEventListener('click', () => {
 //  MARK ATTENDANCE
 // ════════════════════════════════════════════════════════
 
-function markAttendance(id: string) {
-  let p: Participante | null = null;
-  for (let i = 0; i < participantesCache.length; i++) {
-    if (participantesCache[i].id === id) { p = participantesCache[i]; break; }
-  }
+function buscarEnCache(id: string): Participante | null {
+  return participantesCache.find((p) => p.id === id) ?? null;
+}
 
-  if (!p) {
-    isProcessing = false;
-    showResult('error', id, '', 'ID no encontrado en la base de datos', '');
+function markAttendance(id: string) {
+  const p = buscarEnCache(id);
+  if (p) {
+    registrarAsistencia(id, p);
     return;
   }
 
+  // Quien se inscribió después de teclear el PIN —o en un taller agregado hoy
+  // desde el panel— no está en el padrón que se cargó al entrar. Antes de
+  // decir «no encontrado» se pide el padrón otra vez, una sola. Sin red no hay
+  // a quién preguntar, y se dice lo de siempre.
+  const noEncontrado = () => {
+    isProcessing = false;
+    showResult('error', id, '', 'ID no encontrado en la base de datos', '');
+  };
+  if (!navigator.onLine) {
+    noEncontrado();
+    return;
+  }
+  buscarConRecarga(() => buscarEnCache(id), cargarParticipantes).then((encontrado) => {
+    // Si la recarga descubrió que la sesión caducó, la app ya volvió al PIN y
+    // no hay resultado que enseñar.
+    if (!haySesion()) {
+      isProcessing = false;
+      return;
+    }
+    if (encontrado) registrarAsistencia(id, encontrado);
+    else noEncontrado();
+  });
+}
+
+function registrarAsistencia(id: string, p: Participante) {
   if (p.asistencia && !p.asistencia.includes('Pendiente')) {
     isProcessing = false;
     showResult('already', p.nombre, p.evento || '', 'Ya registrado previamente', p.asistencia);
