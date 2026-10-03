@@ -5,6 +5,8 @@ export interface Participante {
   evento: string | null;
   institucion: string | null;
   perfil: string | null;
+  /** Si su pago —o su acreditación, en la asamblea— está aprobado. */
+  aprobado: boolean;
   asistencia: string | null;
 }
 
@@ -22,6 +24,11 @@ export interface RegistroAPI {
   taller: string | null;
   institucion: string | null;
   perfil: string | null;
+  /**
+   * Si su pago —o su acreditación— está aprobado. Opcional porque un Worker
+   * anterior a octubre de 2026 no lo manda: ver `estaAprobado`.
+   */
+  pago_aprobado?: boolean;
   asistio: boolean;
   fecha_asistencia: string | null;
 }

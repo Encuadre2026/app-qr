@@ -1,6 +1,26 @@
+/**
+ * Una marca de tiempo de la API, leída como lo que es.
+ *
+ * D1 escribe `fecha_asistencia` con `CURRENT_TIMESTAMP`: «2026-10-29 15:00:00»,
+ * en UTC, con un espacio en medio y sin marca de zona. Esa cadena no es ISO, y
+ * `new Date()` la tomaba por hora local: en Aguascalientes, quien entró a las
+ * 9:00 salía como «Ya registrado previamente … 15:00», seis horas en el
+ * futuro. El panel tuvo el mismo fallo y lo corrigió en septiembre de 2026; el
+ * portal ya lo leía bien.
+ *
+ * Devuelve `null` si no se puede leer, en vez de una fecha inválida que acaba
+ * pintada como «NaN/NaN/NaN».
+ */
+export function desdeLaApi(texto: string): Date | null {
+  const d1 = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})$/.exec(texto.trim());
+  const fecha = new Date(d1 ? `${d1[1]}T${d1[2]}Z` : texto);
+  return Number.isNaN(fecha.getTime()) ? null : fecha;
+}
+
 export function formatearFecha(dateStr: string | null): string | null {
   if (!dateStr) return null;
-  const d = new Date(dateStr);
+  const d = desdeLaApi(dateStr);
+  if (!d) return null;
   const pad = (n: number) => (n < 10 ? '0' : '') + n;
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }

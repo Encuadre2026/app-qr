@@ -5,7 +5,25 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Seguridad
+
+- **Solo entra quien tiene el pago aprobado.** La app daba por buena a cualquiera
+  del padrón, y en el padrón está todo el que se pre-registró. El Worker
+  responde ahora 409 `PAGO_PENDIENTE` a quien no tiene el pago —o la
+  acreditación de la asamblea— aprobado, y la app lo enseña con un aviso propio
+  que manda a la mesa de registro. El padrón trae `pago_aprobado`: la lista y
+  la ficha dicen «Sin aprobar», y sin red no se encola a quien no lo está.
+
 ### Corregido
+
+- **La hora de asistencia ya no sale seis horas adelantada.** La marca de D1
+  («2026-10-29 15:00:00», UTC sin zona) se leía como hora local. Una fecha
+  ilegible ya no se pinta como «NaN/NaN/NaN».
+- **La cola sin conexión no reintenta para siempre** lo que el servidor rechaza
+  de forma definitiva (404, 409), **no pierde** un escaneo encolado mientras
+  sincroniza y no envía dos veces cuando coinciden dos sincronizaciones.
+- La referencia de la API describía un padrón con CURP, teléfono y correo, y el
+  contrato viejo `success`/`message`.
 
 - **Quien se inscribe después de teclear el PIN ya no sale «no encontrado».**
   El padrón se cargaba una sola vez, al entrar, y la sesión dura doce horas: al

@@ -68,6 +68,24 @@ Uno de los pilares de la arquitectura es su capacidad offline. Si el dispositivo
   participante inexistente quedaban en la cola para siempre mientras al personal
   se le decía que había quedado registrado. Ahora una sesión caducada devuelve
   al PIN y el resto de errores muestran su motivo real.
+- **Solo se encola a quien el último padrón da por aprobado.** Sin red no se
+  puede preguntar si a alguien lo aprobaron hace un minuto, y encolar a quien
+  no tiene el pago aprobado sería dejarlo pasar. A esa persona la app la manda a
+  la mesa de registro.
+- Al sincronizar, lo que el servidor rechaza para siempre (404, 409) se descarta
+  en vez de reintentarse sin fin, y la cola que se guarda al terminar es la de
+  ese momento menos lo resuelto: un escaneo encolado mientras sincronizaba se
+  perdía al sobrescribirla. Dos sincronizaciones a la vez se juntan en una.
+
+## La puerta: solo entra quien tiene el pago aprobado
+
+El QR solo lleva el id, y ese id se conoce desde el alta: tener un código no
+prueba nada. Desde octubre de 2026 el Worker responde **409 `PAGO_PENDIENTE`**
+a quien no tiene el pago —o la acreditación de la asamblea— aprobado, y el padrón
+trae `pago_aprobado`. La app lo enseña en la lista («Sin aprobar»), en la ficha
+y en el aviso del escaneo, y con red siempre le pregunta al servidor: la
+organización puede haber aprobado a esa persona en la mesa de registro hace un
+minuto. La decisión vive en `src/puerta.ts`, que se prueba sin DOM.
 
 ## Actualización de la app
 

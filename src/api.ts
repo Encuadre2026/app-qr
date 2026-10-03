@@ -167,32 +167,62 @@ export function addToOfflineQueue(item: OfflineQueueItem): void {
 }
 
 /**
+ * Un rechazo del servidor que no cambia por reintentarlo: cualquier 4xx salvo
+ * la sesión caducada (401, que se arregla volviendo a teclear el PIN) y el 429
+ * de «espera un poco».
+ */
+export function esRechazoDefinitivo(e: ErrorApi): boolean {
+  return e.status >= 400 && e.status < 500 && e.status !== 401 && e.status !== 429;
+}
+
+/**
  * Envía lo que quedó pendiente por falta de red.
  *
  * Se envían de uno en uno y se van quitando los que sí entran. Antes se
  * lanzaban todos a la vez con `Promise.all` y bastaba con que uno fallara para
  * conservar la cola entera, de modo que los que sí se habían registrado se
  * reintentaban en cada sincronización.
+ *
+ * Al terminar no se guarda la lista que se leyó al empezar, sino la cola de
+ * ese momento sin los que ya se resolvieron: un escaneo encolado mientras esto
+ * corría —la red que va y viene en la puerta— se perdía al sobrescribirla.
  */
-export async function syncOfflineQueue(onUpdateBadge: () => void): Promise<void> {
+let sincronizando: Promise<void> | null = null;
+
+export function syncOfflineQueue(onUpdateBadge: () => void): Promise<void> {
+  // Volver a la app y recuperar la red disparan esto a la vez. Dos pasadas
+  // simultáneas enviaban cada escaneo dos veces y se pisaban al guardar.
+  sincronizando ??= sincronizar(onUpdateBadge).finally(() => {
+    sincronizando = null;
+  });
+  return sincronizando;
+}
+
+async function sincronizar(onUpdateBadge: () => void): Promise<void> {
   const queue = getOfflineQueue();
   if (queue.length === 0 || !navigator.onLine || !haySesion()) return;
 
-  const pendientes: OfflineQueueItem[] = [];
-  for (let i = 0; i < queue.length; i++) {
+  const resueltos = new Set<string>();
+  for (const item of queue) {
     try {
-      await marcarAsistenciaAPI(queue[i].id);
+      await marcarAsistenciaAPI(item.id);
+      resueltos.add(item.id);
     } catch (e) {
       // Si la sesión caducó no tiene sentido seguir intentando con el resto:
       // se conserva todo lo que falta para cuando se vuelva a entrar.
-      if (e instanceof ErrorApi && e.esSesionInvalida) {
-        pendientes.push(...queue.slice(i));
-        break;
+      if (e instanceof ErrorApi && e.esSesionInvalida) break;
+      // Un rechazo definitivo —el participante ya no existe (404) o su pago no
+      // está aprobado (409)— no se arregla reintentando, y antes se quedaba en
+      // la cola para siempre, con la insignia de «pendientes» encendida todo el
+      // día. Solo se conserva lo que puede salir bien más tarde: la red caída
+      // y los fallos del servidor.
+      if (e instanceof ErrorApi && esRechazoDefinitivo(e)) {
+        console.warn(`Se descarta de la cola ${item.id}: ${e.message}`);
+        resueltos.add(item.id);
       }
-      pendientes.push(queue[i]);
     }
   }
 
-  saveOfflineQueue(pendientes);
+  saveOfflineQueue(getOfflineQueue().filter((q) => !resueltos.has(q.id)));
   onUpdateBadge();
 }
