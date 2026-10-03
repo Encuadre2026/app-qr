@@ -16,6 +16,7 @@ import {
 } from './api';
 import { startScanner, stopScanner, pauseScanner, resumeScanner, isScannerActive } from './scanner';
 import { buscarConRecarga, tocaRecargar } from './padron';
+import { CODIGO_PAGO_PENDIENTE, decidirEscaneo, estaAprobado } from './puerta';
 
 // ── Estado ─────────────────────────────────────────────
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -67,6 +68,8 @@ const $detailEvento = document.getElementById('detail-evento') as HTMLTableCellE
 const $detailInstitucion = document.getElementById('detail-institucion') as HTMLTableCellElement;
 const $detailPerfil = document.getElementById('detail-perfil') as HTMLTableCellElement;
 const $detailAsistencia = document.getElementById('detail-asistencia') as HTMLTableCellElement;
+const $detailPagoLabel = document.getElementById('detail-pago-label') as HTMLSpanElement;
+const $detailPago = document.getElementById('detail-pago') as HTMLSpanElement;
 const $detailAsistenciaRow = document.getElementById('detail-asistencia-row') as HTMLTableRowElement;
 const $detailBtnMarcar = document.getElementById('detail-btn-marcar') as HTMLButtonElement;
 
@@ -260,7 +263,10 @@ async function pedirParticipantes(): Promise<boolean> {
       evento: reg.taller,
       institucion: reg.institucion,
       perfil: reg.perfil,
-      asistencia: reg.asistio ? formatearFecha(reg.fecha_asistencia) : null,
+      aprobado: estaAprobado(reg.pago_aprobado),
+      // `formatearFecha` devuelve null si la fecha no se puede leer, y quien ya
+      // entró tiene que seguir constando como dentro aunque sin hora.
+      asistencia: reg.asistio ? (formatearFecha(reg.fecha_asistencia) ?? 'sí') : null,
     }));
     cacheLoaded = true;
     ultimaCarga = Date.now();
@@ -342,6 +348,13 @@ function renderSearchResults(results: Participante[]) {
   results.forEach((r, i) => {
     const initials = getInitials(r.nombre);
     const yaReg = !!r.asistencia;
+    // Tres estados y no dos: «Pendiente» es que todavía no ha entrado; «Sin
+    // aprobar» es que, según el último padrón, no puede entrar.
+    const insignia = yaReg
+      ? { clase: 'badge-asistio', texto: '✓' }
+      : r.aprobado
+        ? { clase: 'badge-pendiente', texto: 'Pendiente' }
+        : { clase: 'badge-sin-aprobar', texto: 'Sin aprobar' };
     html +=
       `<div class="result-item ${yaReg ? ' ya-registrado' : ''}" data-idx="${i}">` +
         `<div class="result-item-avatar">${esc(initials)}</div>` +
@@ -349,9 +362,7 @@ function renderSearchResults(results: Participante[]) {
           `<div class="result-item-name">${esc(r.nombre)}</div>` +
           `<div class="result-item-detail">${esc(r.id)} · ${esc(r.evento)}</div>` +
         `</div>` +
-        `<span class="result-item-badge ${yaReg ? 'badge-asistio' : 'badge-pendiente'}">` +
-          (yaReg ? '✓' : 'Pendiente') +
-        `</span>` +
+        `<span class="result-item-badge ${insignia.clase}">${insignia.texto}</span>` +
       `</div>`;
   });
   $searchResults.innerHTML = html;
@@ -392,6 +403,9 @@ function showDetail(p: Participante) {
   $detailEvento.textContent = p.evento || '—';
   $detailInstitucion.textContent = p.institucion || '—';
   $detailPerfil.textContent = p.perfil || '—';
+  $detailPagoLabel.textContent = esAsamblea(p) ? 'Acreditación' : 'Pago';
+  $detailPago.textContent = p.aprobado ? 'Aprobado' : 'Sin aprobar: a la mesa de registro';
+  $detailPago.style.color = p.aprobado ? 'var(--green)' : 'var(--red)';
   detailCurrentId = p.id;
 
   if (p.asistencia) {
@@ -462,55 +476,106 @@ function markAttendance(id: string) {
   });
 }
 
+/** La asamblea no paga: lo que se le aprueba es la acreditación. */
+function esAsamblea(p: Participante): boolean {
+  return p.perfil === 'Asambleísta Encuadre';
+}
+
+/** «Pago» o «Acreditación», para que el mensaje hable de lo que de verdad falta. */
+function queFalta(p: Participante): string {
+  return esAsamblea(p) ? 'Acreditación' : 'Pago';
+}
+
+/** Sin red no se puede preguntar si la aprobaron hace un momento, y se dice así. */
+function avisarPendienteSinRed(p: Participante) {
+  showResult(
+    'pendiente',
+    p.nombre,
+    p.evento || '',
+    `${queFalta(p)} sin aprobar según la última lista. Sin conexión no se puede comprobar: envía a la persona a la mesa de registro.`,
+    ''
+  );
+}
+
 function registrarAsistencia(id: string, p: Participante) {
-  if (p.asistencia && !p.asistencia.includes('Pendiente')) {
+  const decision = decidirEscaneo(p, navigator.onLine);
+
+  if (decision === 'ya-registrado') {
     isProcessing = false;
-    showResult('already', p.nombre, p.evento || '', 'Ya registrado previamente', p.asistencia);
+    showResult('already', p.nombre, p.evento || '', 'Ya registrado previamente', p.asistencia || '');
+    return;
+  }
+
+  // Quien no tiene el pago aprobado no entra, y sin red no hay a quién
+  // preguntarle si lo aprobaron después de cargar el padrón. Tampoco se encola:
+  // dejarlo pasar ahora y «registrarlo» después sería lo mismo que no mirar.
+  if (decision === 'pendiente-sin-red') {
+    isProcessing = false;
+    avisarPendienteSinRed(p);
     return;
   }
 
   const ahoraStr = obtenerFechaActualStr();
   const asistenciaPrevia = p.asistencia;
-  actualizarCacheLocal(id, ahoraStr);
 
-  if (navigator.onLine) {
-    marcarAsistenciaAPI(id)
-      .then(() => {
-         isProcessing = false;
-         showResult('success', p!.nombre, p!.evento || '', 'Asistencia registrada ✓', ahoraStr);
-      })
-      .catch((err) => {
-         isProcessing = false;
-         const fallo = err instanceof ErrorApi ? err : new ErrorApi('No se pudo registrar la asistencia.');
-
-         // Solo se encola lo que falló por falta de red. Antes se encolaba
-         // cualquier fallo y se anunciaba como «guardado sin conexión»: una
-         // sesión caducada o un participante inexistente quedaban en la cola
-         // para siempre mientras al personal se le decía que había quedado
-         // registrado.
-         if (fallo.esDeRed) {
-           addToOfflineQueue({ id, asistencia: ahoraStr });
-           updateOfflineBadge();
-           showResult('offline-queued', p!.nombre, p!.evento || '', 'Guardado sin conexión', ahoraStr);
-           return;
-         }
-
-         // No se registró, así que la marca optimista de la caché se deshace.
-         actualizarCacheLocal(id, asistenciaPrevia);
-
-         if (fallo.esSesionInvalida) {
-           volverAlPin('Tu sesión expiró. Vuelve a introducir el PIN.');
-           return;
-         }
-
-         showResult('error', p!.nombre, p!.evento || '', fallo.message, '');
-      });
-  } else {
+  if (decision === 'encolar') {
     isProcessing = false;
+    actualizarCacheLocal(id, ahoraStr);
     addToOfflineQueue({ id, asistencia: ahoraStr });
     updateOfflineBadge();
     showResult('offline-queued', p.nombre, p.evento || '', 'Guardado sin conexión', ahoraStr);
+    return;
   }
+
+  // Con red decide el servidor, también para quien el padrón da por pendiente:
+  // pueden haberlo aprobado hace un minuto en la mesa de registro. La marca
+  // optimista de la caché solo se pone a quien se espera que entre.
+  if (p.aprobado) actualizarCacheLocal(id, ahoraStr);
+
+  marcarAsistenciaAPI(id)
+    .then(() => {
+      isProcessing = false;
+      // Si entró, su pago está aprobado aunque el padrón dijera otra cosa.
+      p.aprobado = true;
+      actualizarCacheLocal(id, ahoraStr);
+      showResult('success', p.nombre, p.evento || '', 'Asistencia registrada ✓', ahoraStr);
+    })
+    .catch((err) => {
+      isProcessing = false;
+      const fallo = err instanceof ErrorApi ? err : new ErrorApi('No se pudo registrar la asistencia.');
+
+      // Solo se encola lo que falló por falta de red. Antes se encolaba
+      // cualquier fallo y se anunciaba como «guardado sin conexión»: una
+      // sesión caducada o un participante inexistente quedaban en la cola
+      // para siempre mientras al personal se le decía que había quedado
+      // registrado. Y solo a quien se sabe aprobado, por lo mismo que arriba.
+      if (fallo.esDeRed) {
+        if (!p.aprobado) {
+          avisarPendienteSinRed(p);
+          return;
+        }
+        addToOfflineQueue({ id, asistencia: ahoraStr });
+        updateOfflineBadge();
+        showResult('offline-queued', p.nombre, p.evento || '', 'Guardado sin conexión', ahoraStr);
+        return;
+      }
+
+      // No se registró, así que la marca optimista de la caché se deshace.
+      actualizarCacheLocal(id, asistenciaPrevia);
+
+      if (fallo.esSesionInvalida) {
+        volverAlPin('Tu sesión expiró. Vuelve a introducir el PIN.');
+        return;
+      }
+
+      if (fallo.codigo === CODIGO_PAGO_PENDIENTE) {
+        p.aprobado = false;
+        showResult('pendiente', p.nombre, p.evento || '', fallo.message, '');
+        return;
+      }
+
+      showResult('error', p.nombre, p.evento || '', fallo.message, '');
+    });
 }
 
 function actualizarCacheLocal(id: string, valorAsistencia: string | null) {
@@ -527,20 +592,34 @@ function actualizarCacheLocal(id: string, valorAsistencia: string | null) {
 //  RESULT OVERLAY
 // ════════════════════════════════════════════════════════
 
-function showResult(type: 'success' | 'already' | 'error' | 'offline-queued', name: string, event: string, status: string, time: string) {
-  const icons = {
+/**
+ * `pendiente` es «no puede entrar todavía»: no es un fallo de la app ni del
+ * registro, y por eso no comparte el aspa de `error` con «ID no encontrado».
+ */
+type TipoDeResultado = 'success' | 'already' | 'error' | 'offline-queued' | 'pendiente';
+
+function showResult(type: TipoDeResultado, name: string, event: string, status: string, time: string) {
+  const icons: Record<TipoDeResultado, string> = {
     'success': '✓',
     'already': '⚠',
     'error': '✕',
-    'offline-queued': '⏳'
+    'offline-queued': '⏳',
+    'pendiente': '!'
+  };
+  const clasesDeEstado: Record<TipoDeResultado, string> = {
+    'success': 'success',
+    'already': 'already',
+    'error': 'error',
+    'offline-queued': 'offline',
+    'pendiente': 'pendiente'
   };
 
   $resultIcon.className = 'result-icon ' + type;
-  $resultIcon.textContent = icons[type] || '?';
+  $resultIcon.textContent = icons[type];
   $resultName.textContent = name;
   $resultEvent.textContent = event;
   $resultStatus.textContent = status;
-  $resultStatus.className = 'result-status ' + (type === 'already' ? 'already' : type === 'error' ? 'error' : type === 'offline-queued' ? 'offline' : 'success');
+  $resultStatus.className = 'result-status ' + clasesDeEstado[type];
   $resultTime.textContent = time;
   $resultOverlay.classList.remove('hidden');
 }

@@ -600,6 +600,12 @@ body {
   color: var(--green);
 }
 
+/* Según el último padrón, no puede entrar: su pago no está aprobado. */
+.badge-sin-aprobar {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
 .search-empty {
   text-align: center;
   padding: 40px 20px;
@@ -832,6 +838,15 @@ body {
   border: 2px solid rgba(245,158,11,0.3);
 }
 
+/* «No puede entrar todavía»: rojo como un alto, pero con su propio signo para
+   no confundirse con «ID no encontrado». */
+.result-icon.pendiente {
+  background: var(--red-bg);
+  border: 2px solid rgba(239,68,68,0.3);
+  color: var(--red);
+  font-weight: 800;
+}
+
 @keyframes iconPop {
   from { transform: scale(0); }
   to { transform: scale(1); }
@@ -861,6 +876,7 @@ body {
 .result-status.already { color: var(--orange); }
 .result-status.error { color: var(--red); }
 .result-status.offline { color: var(--orange); }
+.result-status.pendiente { color: var(--red); }
 
 .result-time {
   font-size: 12px;

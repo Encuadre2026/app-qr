@@ -18,6 +18,14 @@ Esta guía ayuda a solucionar los problemas más frecuentes que podrían surgir 
 - **Causa:** Se perdió la sesión, la pestaña se cerró forzosamente antes de recuperar la señal, o los datos de LocalStorage se corrompieron.
 - **Solución:** Abre la pestaña en una zona con Wi-Fi estable. Revisa el contador naranja en la esquina superior; debería desaparecer cuando termine de enviar los datos encolados. Nunca borres el caché del celular si tienes asistencias pendientes de sincronizar.
 
+## 5. Un QR se lee pero la app dice «Pago sin aprobar» o «Acreditación sin aprobar»
+- **Causa:** el pago de esa persona —o su oficio, si es de la asamblea— todavía no está aprobado en el panel. La puerta solo deja pasar a quien lo tiene aprobado.
+- **Solución:** envíala a la mesa de registro. Cuando ahí la aprueben en el panel, vuelve a escanear el mismo código: con conexión la app le pregunta al servidor y entra. Sin conexión la app no puede comprobarlo y lo dice.
+
+## 6. La hora de «Ya registrado previamente» sale seis horas adelantada
+- **Causa:** versiones anteriores a octubre de 2026 leían la hora de la base como hora local; es UTC.
+- **Solución:** actualizar la app (ver «La app muestra una versión vieja»).
+
 ## El despliegue falla con «El paquete contiene credenciales»
 
 `npm run verificar` revisa el JavaScript compilado antes de publicarlo y aborta
