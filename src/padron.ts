@@ -1,5 +1,6 @@
 /**
- * El padrón: cómo se lee cada fila y cuándo se vuelve a pedir.
+ * El padrón: cómo se lee cada fila, cómo se busca en él y cuándo se vuelve a
+ * pedir.
  *
  * La app lo cargaba una sola vez, al teclear el PIN, y la sesión dura doce
  * horas. Todo lo que cambiara después no llegaba al teléfono hasta volver a
@@ -10,7 +11,7 @@
 
 import { estaAprobado } from './puerta';
 import { Participante, RegistroAPI } from './types';
-import { formatearFecha } from './utils';
+import { formatearFecha, normalizar } from './utils';
 
 /**
  * Una fila del padrón de la API, como la guarda la app.
@@ -37,6 +38,41 @@ export function participanteDesdeLaApi(reg: RegistroAPI): Participante {
     asistencias: reg.asistencias ?? (reg.asistio ? 1 : 0),
     ultima,
   };
+}
+
+/**
+ * Cuántos nombres se enseñan como mucho.
+ *
+ * Dos letras pueden casar con cientos de personas, y una lista así no se
+ * recorre con el pulgar: lo que se hace es teclear una letra más.
+ */
+export const MAXIMO_RESULTADOS = 20;
+
+/**
+ * Los participantes que casan con lo escrito, por nombre o por id.
+ *
+ * Compara las dos partes normalizadas —ver `normalizar`— y no el texto tal
+ * cual, para que una tilde olvidada, o puesta de más, siga encontrando a la
+ * persona.
+ *
+ * Vive aquí, fuera de `main.ts`, por lo mismo que la función de arriba.
+ */
+export function buscarEnPadron(
+  lista: Participante[],
+  texto: string,
+  limite: number = MAXIMO_RESULTADOS
+): Participante[] {
+  const buscado = normalizar(texto);
+  if (!buscado) return [];
+
+  const resultados: Participante[] = [];
+  for (const p of lista) {
+    if (normalizar(p.nombre).includes(buscado) || normalizar(p.id).includes(buscado)) {
+      resultados.push(p);
+      if (resultados.length >= limite) break;
+    }
+  }
+  return resultados;
 }
 
 /**

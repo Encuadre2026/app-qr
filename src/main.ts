@@ -22,7 +22,7 @@ import {
   syncOfflineQueue,
 } from './api';
 import { startScanner, stopScanner, pauseScanner, resumeScanner, isScannerActive } from './scanner';
-import { buscarConRecarga, participanteDesdeLaApi, tocaRecargar } from './padron';
+import { buscarConRecarga, buscarEnPadron, participanteDesdeLaApi, tocaRecargar } from './padron';
 import {
   CODIGO_PAGO_PENDIENTE,
   decidirEscaneo,
@@ -319,7 +319,7 @@ function volverAlPin(motivo: string) {
 }
 
 function onSearchInput() {
-  const q = $searchInput.value.trim().toLowerCase();
+  const q = $searchInput.value.trim();
   if (q.length < 2) {
     showSearchEmpty('Escribe al menos 2 caracteres');
     return;
@@ -331,16 +331,7 @@ function onSearchInput() {
     return;
   }
 
-  const resultados: Participante[] = [];
-  for (let i = 0; i < participantesCache.length; i++) {
-    const p = participantesCache[i];
-    const coincide = p.id.toLowerCase().includes(q) || p.nombre.toLowerCase().includes(q);
-    if (coincide) {
-      resultados.push(p);
-      if (resultados.length >= 20) break;
-    }
-  }
-
+  const resultados = buscarEnPadron(participantesCache, q);
   if (resultados.length) {
     renderSearchResults(resultados);
   } else {

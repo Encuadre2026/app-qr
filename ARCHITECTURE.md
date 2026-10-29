@@ -20,14 +20,16 @@ El proyecto usa Vite como empaquetador para generar una aplicación de una sola 
    Detecta que ha entrado una versión nueva y recarga la app, y pregunta por una
    cada vez que vuelve al primer plano.
 5. **`src/utils.ts` (utilidades puras):**
-   Funciones sin estado —formatear fechas, iniciales, escapado— fáciles de probar.
+   Funciones sin estado —formatear fechas, iniciales, escapado, normalizar un
+   texto para compararlo— fáciles de probar.
 6. **`src/config.ts` · `src/types.ts`:**
    Constantes y formas de los datos. `config.ts` **no contiene ninguna
    credencial**: es justamente donde estaba el problema.
 7. **`src/puerta.ts` · `src/padron.ts` (las reglas, sin DOM):**
    Qué hacer con un escaneo —preguntar al Worker, encolarlo o avisar—, la espera
-   entre dos asistencias de la misma persona, y cómo se entiende cada fila del
-   padrón. Viven fuera de `main.ts` para poder probarlas sin navegador.
+   entre dos asistencias de la misma persona, cómo se entiende cada fila del
+   padrón y cómo se busca un nombre en él. Viven fuera de `main.ts` para poder
+   probarlas sin navegador.
 
 ## Varias asistencias por persona
 
@@ -110,6 +112,20 @@ trae `pago_aprobado`. La app lo enseña en la lista («Sin aprobar»), en la fic
 y en el aviso del escaneo, y con red siempre le pregunta al servidor: la
 organización puede haber aprobado a esa persona en la mesa de registro hace un
 minuto. La decisión vive en `src/puerta.ts`, que se prueba sin DOM.
+
+## La búsqueda por nombre: la tilde no decide
+
+Quien pasa lista teclea deprisa, en un teléfono y a veces con una sola mano, así
+que la tilde se queda sin poner. La búsqueda comparaba el texto tal cual, de
+modo que «jose perez» no encontraba a «José Pérez» y la persona se daba por no
+inscrita teniéndola delante.
+
+Las dos partes se comparan normalizadas (`normalizar` en `src/utils.ts`): sin
+mayúsculas, sin marcas diacríticas y con un solo espacio entre palabras. Vale en
+los dos sentidos, que hacen falta los dos, porque en el padrón también hay
+nombres dados de alta sin tilde: «munoz» encuentra a «Muñoz» y «Pérez» encuentra
+a «Perez». Es la misma regla que usan el formulario de registro del sitio para
+buscar instituciones y el Worker para comparar nombres de taller.
 
 ## Actualización de la app
 
