@@ -56,6 +56,31 @@ export function esc(str: string | null | undefined): string {
   return div.innerHTML;
 }
 
+/**
+ * Un texto tal como se compara al buscar: en minúsculas, sin tildes y con un
+ * solo espacio entre palabras.
+ *
+ * En la puerta se teclea deprisa, en un teléfono y a veces con una sola mano,
+ * así que la tilde se queda sin poner. Buscando «jose perez» no aparecía «José
+ * Pérez», y quien pasa lista daba por no inscrita a una persona que sí lo
+ * estaba. Hacen falta los dos sentidos: también hay nombres dados de alta sin
+ * tilde, y escribir «Pérez» tiene que encontrar a «Perez».
+ *
+ * En NFD cada tilde es un carácter aparte de la clase «marca» (\p{M}), y
+ * quitarlas deja la letra sola. La ñ y la diéresis se descomponen igual, así
+ * que «munoz» encuentra a «Muñoz» y «arguelles» a «Argüelles». Es la misma
+ * regla que ya usan el formulario de registro para buscar instituciones y el
+ * Worker para comparar nombres de taller.
+ */
+export function normalizar(texto: string | null | undefined): string {
+  return (texto || '')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 let audioCtx: AudioContext | null = null;
 
 export function playBeep(): void {

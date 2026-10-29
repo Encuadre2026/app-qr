@@ -1,11 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   buscarConRecarga,
+  buscarEnPadron,
+  MAXIMO_RESULTADOS,
   MINIMO_ENTRE_RECARGAS_MS,
   participanteDesdeLaApi,
   tocaRecargar,
 } from '../src/padron';
-import { RegistroAPI } from '../src/types';
+import { Participante, RegistroAPI } from '../src/types';
 
 /** Una fila del padrón con lo mínimo, para no repetirla en cada prueba. */
 function fila(extra: Partial<RegistroAPI> = {}): RegistroAPI {
@@ -65,6 +67,52 @@ describe('padron.ts', () => {
 
       expect(p.asistencias).toBe(1);
       expect(p.asistencia).toBe('sí');
+    });
+  });
+
+  describe('buscarEnPadron', () => {
+    /** Alguien del padrón, tal como lo guarda la app. */
+    const persona = (id: string, nombre: string): Participante =>
+      participanteDesdeLaApi(fila({ id_participante: id, nombre }));
+
+    const padron = [
+      persona('ENC-001', 'José Pérez Muñoz'),
+      persona('ENC-002', 'Jose Ramirez'),
+      persona('ENC-003', 'María Ángeles Argüelles'),
+    ];
+
+    // El defecto que se arregló: sin la tilde, el nombre no aparecía.
+    it('encuentra un nombre con tilde escrito sin ella', () => {
+      expect(buscarEnPadron(padron, 'jose perez').map((p) => p.id)).toEqual(['ENC-001']);
+      expect(buscarEnPadron(padron, 'munoz').map((p) => p.id)).toEqual(['ENC-001']);
+      expect(buscarEnPadron(padron, 'maria angeles').map((p) => p.id)).toEqual(['ENC-003']);
+    });
+
+    it('y uno escrito sin tilde buscándolo con ella', () => {
+      expect(buscarEnPadron(padron, 'Ramírez').map((p) => p.id)).toEqual(['ENC-002']);
+    });
+
+    it('con o sin tilde, salen los dos cuando los dos casan', () => {
+      expect(buscarEnPadron(padron, 'JOSE').map((p) => p.id)).toEqual(['ENC-001', 'ENC-002']);
+    });
+
+    it('sigue encontrando por id, en cualquier caja', () => {
+      expect(buscarEnPadron(padron, 'enc-002').map((p) => p.id)).toEqual(['ENC-002']);
+    });
+
+    it('no enseña más de los que caben', () => {
+      const muchos = Array.from({ length: MAXIMO_RESULTADOS + 5 }, (_, i) =>
+        persona(`ENC-${i}`, 'Pérez')
+      );
+      expect(buscarEnPadron(muchos, 'perez')).toHaveLength(MAXIMO_RESULTADOS);
+    });
+
+    it('a quien no está, no lo inventa', () => {
+      expect(buscarEnPadron(padron, 'zzz')).toEqual([]);
+    });
+
+    it('un texto que solo son espacios no casa con todo el padrón', () => {
+      expect(buscarEnPadron(padron, '   ')).toEqual([]);
     });
   });
 

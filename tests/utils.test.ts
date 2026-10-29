@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatearFecha, getInitials, esc } from '../src/utils';
+import { formatearFecha, getInitials, esc, normalizar } from '../src/utils';
 
 describe('utils.ts', () => {
   describe('formatearFecha', () => {
@@ -35,6 +35,41 @@ describe('utils.ts', () => {
       expect(getInitials(null)).toBe('?');
       expect(getInitials(undefined)).toBe('?');
       expect(getInitials('')).toBe('?');
+    });
+  });
+
+  describe('normalizar (el texto como se compara al buscar)', () => {
+    it('el nombre con tilde y el escrito sin ella se comparan igual', () => {
+      expect(normalizar('José Pérez')).toBe(normalizar('jose perez'));
+    });
+
+    // Los dos sentidos: también hay nombres dados de alta sin tilde.
+    it('y al revés, el nombre sin tilde escrito con ella', () => {
+      expect(normalizar('Jose Perez')).toBe(normalizar('José Pérez'));
+    });
+
+    it('la ñ se compara como n, que es lo que se teclea', () => {
+      expect(normalizar('MUÑOZ')).toBe('munoz');
+    });
+
+    it('la diéresis también', () => {
+      expect(normalizar('Argüelles')).toBe('arguelles');
+    });
+
+    // El teclado del teléfono manda la á como un solo carácter, pero copiada de
+    // otro sitio puede llegar descompuesta: a + tilde. Las dos formas valen.
+    it('da igual cómo venga compuesta la tilde', () => {
+      expect(normalizar('Jos\u00e9')).toBe(normalizar('Jose\u0301'));
+    });
+
+    it('un espacio de más no deja a nadie fuera', () => {
+      expect(normalizar('  María   del  Carmen ')).toBe('maria del carmen');
+    });
+
+    it('maneja nulos, vacíos y solo espacios', () => {
+      expect(normalizar(null)).toBe('');
+      expect(normalizar(undefined)).toBe('');
+      expect(normalizar('   ')).toBe('');
     });
   });
 

@@ -34,6 +34,12 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Corregido
 
+- **Un nombre con tilde se encuentra escribiéndolo sin ella.** La búsqueda
+  comparaba el texto tal cual: «jose perez» no encontraba a «José Pérez», y
+  quien pasa lista daba por no inscrita a una persona que sí lo estaba. Ahora
+  nombre e id se comparan sin mayúsculas, sin tildes y sin espacios de sobra, en
+  los dos sentidos —«munoz» encuentra a «Muñoz» y «Pérez» a «Perez»—, porque en
+  el padrón también hay nombres dados de alta sin tilde.
 - **La hora de asistencia ya no sale seis horas adelantada.** La marca de D1
   («2026-10-29 15:00:00», UTC sin zona) se leía como hora local. Una fecha
   ilegible ya no se pinta como «NaN/NaN/NaN».
