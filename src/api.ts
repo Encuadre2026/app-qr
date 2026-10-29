@@ -1,5 +1,5 @@
 import { API_URL, OFFLINE_QUEUE_KEY, STAFF_TOKEN_KEY } from './config';
-import { RegistrosResponse, OfflineQueueItem } from './types';
+import { RegistrosResponse, OfflineQueueItem, RespuestaDeAsistencia } from './types';
 
 /**
  * Un error de la API, con el código que permite distinguirlo.
@@ -135,11 +135,28 @@ async function pedir(ruta: string, opciones: RequestInit = {}): Promise<CuerpoAp
  */
 export async function fetchParticipantes(): Promise<RegistrosResponse> {
   const cuerpo = await pedir('/api/staff/participantes');
-  return { participantes: (cuerpo.participantes as RegistrosResponse['participantes']) || [] };
+  return {
+    participantes: (cuerpo.participantes as RegistrosResponse['participantes']) || [],
+    // La espera entre dos asistencias la dice el Worker, que es donde se
+    // configura. Si no viene —un Worker anterior—, `minutosDeEspera` pone la de
+    // por defecto.
+    minutos_entre_asistencias: cuerpo.minutos_entre_asistencias as number | undefined,
+  };
 }
 
-export async function marcarAsistenciaAPI(id: string): Promise<void> {
-  await pedir('/api/asistencia', { method: 'POST', body: JSON.stringify({ id }) });
+/**
+ * Anota una asistencia y devuelve lo que contestó el Worker.
+ *
+ * Antes se descartaba la respuesta: bastaba con que no fallara, porque la
+ * asistencia era un sí o no. Ahora trae el recuento y, si el escaneo cayó dentro
+ * de la espera, un `duplicado: true` con los minutos que faltan; eso no es un
+ * error —el servidor contesta 200— y es lo que la app tiene que enseñar.
+ */
+export async function marcarAsistenciaAPI(id: string): Promise<RespuestaDeAsistencia> {
+  return (await pedir('/api/asistencia', {
+    method: 'POST',
+    body: JSON.stringify({ id }),
+  })) as RespuestaDeAsistencia;
 }
 
 // ── Lógica Offline ──
@@ -159,7 +176,10 @@ export function saveOfflineQueue(queue: OfflineQueueItem[]): void {
 
 export function addToOfflineQueue(item: OfflineQueueItem): void {
   const queue = getOfflineQueue();
-  // Evitar duplicados
+  // Un id, una entrada. Ahora que a la misma persona se le puede pasar lista
+  // varias veces esto podría parecer una pérdida, y no lo es: la cola se vacía
+  // de una vez, así que dos escaneos suyos saldrían con segundos de diferencia
+  // y el segundo caería dentro de la espera del Worker igual.
   if (!queue.find((q) => q.id === item.id)) {
     queue.push(item);
     saveOfflineQueue(queue);

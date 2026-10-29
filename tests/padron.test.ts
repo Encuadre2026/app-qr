@@ -1,7 +1,73 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buscarConRecarga, MINIMO_ENTRE_RECARGAS_MS, tocaRecargar } from '../src/padron';
+import {
+  buscarConRecarga,
+  MINIMO_ENTRE_RECARGAS_MS,
+  participanteDesdeLaApi,
+  tocaRecargar,
+} from '../src/padron';
+import { RegistroAPI } from '../src/types';
+
+/** Una fila del padrón con lo mínimo, para no repetirla en cada prueba. */
+function fila(extra: Partial<RegistroAPI> = {}): RegistroAPI {
+  return {
+    id_participante: 'ENC-001',
+    nombre: 'Persona',
+    taller: 'Un taller',
+    institucion: 'Una escuela',
+    perfil: 'Estudiante',
+    pago_aprobado: true,
+    asistio: false,
+    fecha_asistencia: null,
+    ...extra,
+  };
+}
 
 describe('padron.ts', () => {
+  describe('participanteDesdeLaApi', () => {
+    it('guarda el recuento que manda el Worker', () => {
+      const p = participanteDesdeLaApi(
+        fila({
+          asistio: true,
+          fecha_asistencia: '2026-10-29 15:00:00',
+          asistencias: 3,
+          dias_asistidos: 3,
+          ultima_asistencia: '2026-10-31 15:00:00',
+        })
+      );
+
+      expect(p.asistencias).toBe(3);
+      // La que se enseña es la última, no la primera: es la que dice cuánta
+      // espera queda para que la siguiente cuente.
+      expect(p.ultima).toBe('2026-10-31 15:00:00');
+    });
+
+    // Los minutos en que conviven el Worker anterior y la app nueva.
+    it('sin el recuento, la marca de haber entrado vale por una asistencia', () => {
+      const p = participanteDesdeLaApi(
+        fila({ asistio: true, fecha_asistencia: '2026-10-29 15:00:00' })
+      );
+
+      expect(p.asistencias).toBe(1);
+      expect(p.ultima).toBe('2026-10-29 15:00:00');
+      expect(p.asistencia).not.toBeNull();
+    });
+
+    it('quien no ha entrado queda en cero y sin fecha', () => {
+      const p = participanteDesdeLaApi(fila());
+
+      expect(p.asistencias).toBe(0);
+      expect(p.ultima).toBeNull();
+      expect(p.asistencia).toBeNull();
+    });
+
+    it('una fecha ilegible no borra la asistencia: consta sin hora', () => {
+      const p = participanteDesdeLaApi(fila({ asistio: true, fecha_asistencia: 'ayer' }));
+
+      expect(p.asistencias).toBe(1);
+      expect(p.asistencia).toBe('sí');
+    });
+  });
+
   describe('tocaRecargar', () => {
     it('recarga si nunca se cargó', () => {
       expect(tocaRecargar(null, 1000)).toBe(true);

@@ -25,6 +25,25 @@ export function formatearFecha(dateStr: string | null): string | null {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/**
+ * «45 minutos», «1 hora», «3 horas y 50 minutos».
+ *
+ * Es la misma redacción que usa el Worker en su mensaje, porque las dos frases
+ * salen en la misma pantalla: la suya cuando hay red y esta cuando no. Nunca
+ * dice «0 minutos», que se leería como «ya puedes».
+ */
+export function expresarMinutos(minutos: number): string {
+  const total = Math.max(1, Math.round(minutos));
+  const plural = (n: number, singular: string) => `${n} ${singular}${n === 1 ? '' : 's'}`;
+  if (total < 60) return plural(total, 'minuto');
+
+  const horas = Math.floor(total / 60);
+  const resto = total % 60;
+  return resto === 0
+    ? plural(horas, 'hora')
+    : `${plural(horas, 'hora')} y ${plural(resto, 'minuto')}`;
+}
+
 export function getInitials(name: string | null | undefined): string {
   const parts = (name || '?').split(' ');
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();

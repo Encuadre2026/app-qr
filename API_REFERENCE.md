@@ -42,9 +42,13 @@ vez por minuto) y ante un ID que no tiene.
       "perfil": "Estudiante",
       "pago_aprobado": true,
       "asistio": true,
-      "fecha_asistencia": "2026-10-29 15:00:00"
+      "fecha_asistencia": "2026-10-29 15:00:00",
+      "asistencias": 2,
+      "dias_asistidos": 2,
+      "ultima_asistencia": "2026-10-30 15:04:05"
     }
-  ]
+  ],
+  "minutos_entre_asistencias": 240
 }
 ```
 
@@ -55,6 +59,15 @@ vez por minuto) y ante un ID que no tiene.
 - `fecha_asistencia` llega como la escribe D1: en **UTC y sin marca de zona**.
   La app la lee como UTC (`desdeLaApi` en `src/utils.ts`); leída como hora local
   salía seis horas adelantada.
+- `asistencias`, `dias_asistidos` y `ultima_asistencia` son el recuento: a la
+  misma persona se le pasa lista varias veces, porque la constancia se entrega a
+  quien acumule un mínimo. `asistio` y `fecha_asistencia` siguen siendo «entró» y
+  «cuándo entró la primera vez». La app guarda la **última** para medir la espera
+  y la cuenta para enseñarla en la lista y en el detalle.
+- `minutos_entre_asistencias` es la espera que exige el Worker entre dos
+  asistencias de la misma persona. Llega en la respuesta porque allí se
+  configura y se puede cambiar sin desplegar la app; si no viene —un Worker
+  anterior—, `minutosDeEspera` usa 240 (cuatro horas).
 
 ---
 
@@ -62,18 +75,26 @@ vez por minuto) y ante un ID que no tiene.
 
 `POST /api/asistencia` con `{ "id": "ENC-001" }`
 
-| Respuesta               | Qué significa                                     | Qué hace la app                             |
-| ----------------------- | ------------------------------------------------- | ------------------------------------------- |
-| 200, `duplicado: false` | Entró                                             | «Asistencia registrada ✓»                   |
-| 200, `duplicado: true`  | Ya había entrado                                  | «Ya registrado previamente»                 |
-| 409, `PAGO_PENDIENTE`   | Su pago o acreditación no está aprobado; no entra | Aviso rojo: enviarlo a la mesa de registro  |
-| 404                     | No existe ese participante                        | Error                                       |
-| 401                     | La sesión caducó                                  | Vuelve al PIN                               |
-| Sin respuesta (red)     | No se sabe                                        | Si estaba aprobado, se encola; si no, aviso |
+| Respuesta               | Qué significa                                      | Qué hace la app                               |
+| ----------------------- | -------------------------------------------------- | --------------------------------------------- |
+| 200, `duplicado: false` | Se anotó; trae `asistencias` y `dias_asistidos`    | «Asistencia N registrada ✓»                   |
+| 200, `duplicado: true`  | No contó: la espera no había terminado             | Enseña el `mensaje` del Worker, con lo que falta |
+| 409, `PAGO_PENDIENTE`   | Su pago o acreditación no está aprobado; no entra  | Aviso rojo: enviarlo a la mesa de registro    |
+| 404                     | No existe ese participante                         | Error                                         |
+| 401                     | La sesión caducó                                   | Vuelve al PIN                                 |
+| Sin respuesta (red)     | No se sabe                                         | Si estaba aprobado, se encola; si no, aviso   |
 
-**Sin conexión** solo se encola a quien el último padrón da por aprobado. A
-quien no, la app le dice que no se puede comprobar y lo manda a la mesa de
-registro: dejarlo pasar y registrarlo después sería lo mismo que no mirar.
+**Con red se pregunta siempre**, incluso para quien ya tiene asistencias. Antes
+la app decidía por su cuenta que alguien «ya estaba registrado» y no llegaba a
+llamar al Worker; desde que se puede pasar lista varias veces eso hacía imposible
+la segunda, porque quien sabe cuánta espera queda —y si otro teléfono acaba de
+pasarle lista— es el Worker.
+
+**Sin conexión** solo se encola a quien el último padrón da por aprobado y está
+fuera de la espera. A quien no está aprobado, la app le dice que no se puede
+comprobar y lo manda a la mesa de registro: dejarlo pasar y registrarlo después
+sería lo mismo que no mirar. Y a quien está dentro de la espera le dice que ese
+escaneo no cuenta, en vez de encolarlo para que el Worker lo descarte luego.
 
 La cola se envía en cuanto vuelve la red. Lo que el servidor rechaza para
 siempre —un 404, un 409— se descarta en vez de reintentarse sin fin; lo que

@@ -24,6 +24,30 @@ El proyecto usa Vite como empaquetador para generar una aplicación de una sola 
 6. **`src/config.ts` · `src/types.ts`:**
    Constantes y formas de los datos. `config.ts` **no contiene ninguna
    credencial**: es justamente donde estaba el problema.
+7. **`src/puerta.ts` · `src/padron.ts` (las reglas, sin DOM):**
+   Qué hacer con un escaneo —preguntar al Worker, encolarlo o avisar—, la espera
+   entre dos asistencias de la misma persona, y cómo se entiende cada fila del
+   padrón. Viven fuera de `main.ts` para poder probarlas sin navegador.
+
+## Varias asistencias por persona
+
+Desde octubre de 2026 la asistencia no es un sí o no: a la misma persona se le
+pasa lista varias veces —otro día del Encuentro, u otro momento del mismo día—
+porque la constancia se entrega a quien acumule un mínimo.
+
+Quien cuenta y quien decide es el Worker. **Con red, la app pregunta siempre**,
+incluso por alguien que ya tiene asistencias: antes resolvía ella misma que «ya
+estaba registrado» y no llegaba a llamarlo, de modo que la segunda asistencia era
+imposible por mucho que el servidor la admitiera. Además, el padrón del teléfono
+puede ser de hace un rato y no saber que otro teléfono acaba de pasarle lista.
+
+Entre dos asistencias de la misma persona tiene que pasar una espera —cuatro
+horas por defecto; la manda el padrón en `minutos_entre_asistencias`, porque se
+configura en el Worker—. Es lo que impide que escanear tres veces el mismo código
+en la misma mesa regale una constancia. La app la conoce para dos cosas: dejar
+apagado el botón de marcar mientras dure, y avisar **sin conexión** de que ese
+escaneo no va a contar, en vez de encolarlo para que el servidor lo descarte más
+tarde diciéndole al personal que quedó guardado.
 
 ## Autenticación
 

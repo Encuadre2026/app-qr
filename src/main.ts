@@ -2,7 +2,14 @@ import './style.css';
 import { LARGO_PIN, SEARCH_DEBOUNCE_MS } from './config';
 import { VERSION, vigilarActualizaciones } from './actualizacion';
 import { Participante } from './types';
-import { formatearFecha, getInitials, esc, playBeep, obtenerFechaActualStr } from './utils';
+import {
+  formatearFecha,
+  getInitials,
+  esc,
+  expresarMinutos,
+  playBeep,
+  obtenerFechaActualStr,
+} from './utils';
 import {
   ErrorApi,
   addToOfflineQueue,
@@ -15,8 +22,14 @@ import {
   syncOfflineQueue,
 } from './api';
 import { startScanner, stopScanner, pauseScanner, resumeScanner, isScannerActive } from './scanner';
-import { buscarConRecarga, tocaRecargar } from './padron';
-import { CODIGO_PAGO_PENDIENTE, decidirEscaneo, estaAprobado } from './puerta';
+import { buscarConRecarga, participanteDesdeLaApi, tocaRecargar } from './padron';
+import {
+  CODIGO_PAGO_PENDIENTE,
+  decidirEscaneo,
+  MINUTOS_ENTRE_ASISTENCIAS,
+  minutosDeEspera,
+  minutosQueFaltan,
+} from './puerta';
 
 // ── Estado ─────────────────────────────────────────────
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -28,6 +41,13 @@ let ultimaCarga: number | null = null;
 /** La carga en curso, para que dos peticiones a la vez no pidan el padrón dos veces. */
 let cargaEnCurso: Promise<boolean> | null = null;
 let lastSearchResults: Participante[] = [];
+/**
+ * Minutos que tienen que pasar entre dos asistencias de la misma persona.
+ *
+ * Lo dice el padrón, porque se configura en el Worker y se puede cambiar sin
+ * desplegar la app. Mientras no se haya cargado, el de por defecto.
+ */
+let esperaEntreAsistencias = MINUTOS_ENTRE_ASISTENCIAS;
 let pinCode = '';
 let verificandoPin = false;
 let detailCurrentId = '';
@@ -257,17 +277,9 @@ function cargarParticipantes(): Promise<boolean> {
 async function pedirParticipantes(): Promise<boolean> {
   try {
     const data = await fetchParticipantes();
-    participantesCache = data.participantes.map((reg) => ({
-      id: reg.id_participante,
-      nombre: reg.nombre,
-      evento: reg.taller,
-      institucion: reg.institucion,
-      perfil: reg.perfil,
-      aprobado: estaAprobado(reg.pago_aprobado),
-      // `formatearFecha` devuelve null si la fecha no se puede leer, y quien ya
-      // entró tiene que seguir constando como dentro aunque sin hora.
-      asistencia: reg.asistio ? (formatearFecha(reg.fecha_asistencia) ?? 'sí') : null,
-    }));
+    // La espera la dice el Worker, que es donde se configura.
+    esperaEntreAsistencias = minutosDeEspera(data.minutos_entre_asistencias);
+    participantesCache = data.participantes.map(participanteDesdeLaApi);
     cacheLoaded = true;
     ultimaCarga = Date.now();
     if ($tabSearch.classList.contains('active')) {
@@ -347,11 +359,13 @@ function renderSearchResults(results: Participante[]) {
   let html = '';
   results.forEach((r, i) => {
     const initials = getInitials(r.nombre);
-    const yaReg = !!r.asistencia;
+    const yaReg = r.asistencias > 0;
     // Tres estados y no dos: «Pendiente» es que todavía no ha entrado; «Sin
-    // aprobar» es que, según el último padrón, no puede entrar.
+    // aprobar» es que, según el último padrón, no puede entrar. Quien ya entró
+    // lleva su cuenta: con varias asistencias por persona, un ✓ a secas no
+    // distingue a quien vino un día de quien vino los tres.
     const insignia = yaReg
-      ? { clase: 'badge-asistio', texto: '✓' }
+      ? { clase: 'badge-asistio', texto: `✓ ${r.asistencias}` }
       : r.aprobado
         ? { clase: 'badge-pendiente', texto: 'Pendiente' }
         : { clase: 'badge-sin-aprobar', texto: 'Sin aprobar' };
@@ -408,13 +422,18 @@ function showDetail(p: Participante) {
   $detailPago.style.color = p.aprobado ? 'var(--green)' : 'var(--red)';
   detailCurrentId = p.id;
 
-  if (p.asistencia) {
+  // Con varias asistencias por persona, la fila dice cuántas lleva y cuándo fue
+  // la última, y el botón ya no se apaga para siempre: se apaga solo mientras
+  // dure la espera, porque dentro de ella el escaneo no contaría.
+  if (p.asistencias > 0) {
+    const falta = minutosQueFaltan(p.ultima, esperaEntreAsistencias);
     $detailAsistenciaRow.style.display = '';
-    $detailAsistencia.textContent = p.asistencia;
+    $detailAsistencia.textContent =
+      enVeces(p.asistencias) + (p.asistencia ? ` · última: ${p.asistencia}` : '');
     $detailAsistencia.style.color = 'var(--green)';
-    $detailBtnMarcar.textContent = '✓ Ya registrado';
-    $detailBtnMarcar.classList.add('ya-registrado');
-    $detailBtnMarcar.disabled = true;
+    $detailBtnMarcar.textContent = falta > 0 ? '✓ Ya registrado' : '✓ Marcar otra asistencia';
+    $detailBtnMarcar.classList.toggle('ya-registrado', falta > 0);
+    $detailBtnMarcar.disabled = falta > 0;
   } else {
     $detailAsistenciaRow.style.display = 'none';
     $detailBtnMarcar.textContent = '✓ Marcar asistencia';
@@ -497,12 +516,27 @@ function avisarPendienteSinRed(p: Participante) {
   );
 }
 
-function registrarAsistencia(id: string, p: Participante) {
-  const decision = decidirEscaneo(p, navigator.onLine);
+/** «2 veces» / «1 vez», para los mensajes del recuento. */
+function enVeces(cuantas: number): string {
+  return `${cuantas} ${cuantas === 1 ? 'vez' : 'veces'}`;
+}
 
+function registrarAsistencia(id: string, p: Participante) {
+  const decision = decidirEscaneo(p, navigator.onLine, esperaEntreAsistencias);
+
+  // Sin red y dentro de la espera: ese escaneo no va a contar, y decirlo ahora
+  // es mejor que encolarlo para que el servidor lo descarte dentro de un rato.
   if (decision === 'ya-registrado') {
     isProcessing = false;
-    showResult('already', p.nombre, p.evento || '', 'Ya registrado previamente', p.asistencia || '');
+    const falta = minutosQueFaltan(p.ultima, esperaEntreAsistencias);
+    showResult(
+      'already',
+      p.nombre,
+      p.evento || '',
+      `Ya se le pasó lista (${enVeces(p.asistencias)}): esta no cuenta. ` +
+        `La siguiente cuenta en ${expresarMinutos(falta)}.`,
+      p.asistencia || ''
+    );
     return;
   }
 
@@ -516,11 +550,20 @@ function registrarAsistencia(id: string, p: Participante) {
   }
 
   const ahoraStr = obtenerFechaActualStr();
-  const asistenciaPrevia = p.asistencia;
+  // Lo que había antes del escaneo, para poder deshacer la marca optimista si
+  // el servidor no la acepta. Son tres campos desde que se cuentan las
+  // asistencias, así que se guardan juntos.
+  const estadoPrevio = { asistencia: p.asistencia, asistencias: p.asistencias, ultima: p.ultima };
+  /** La asistencia de ahora, como la contaría el Worker. */
+  const unaMas = {
+    asistencia: ahoraStr,
+    asistencias: p.asistencias + 1,
+    ultima: new Date().toISOString(),
+  };
 
   if (decision === 'encolar') {
     isProcessing = false;
-    actualizarCacheLocal(id, ahoraStr);
+    actualizarCacheLocal(id, unaMas);
     addToOfflineQueue({ id, asistencia: ahoraStr });
     updateOfflineBadge();
     showResult('offline-queued', p.nombre, p.evento || '', 'Guardado sin conexión', ahoraStr);
@@ -530,15 +573,47 @@ function registrarAsistencia(id: string, p: Participante) {
   // Con red decide el servidor, también para quien el padrón da por pendiente:
   // pueden haberlo aprobado hace un minuto en la mesa de registro. La marca
   // optimista de la caché solo se pone a quien se espera que entre.
-  if (p.aprobado) actualizarCacheLocal(id, ahoraStr);
+  if (p.aprobado) actualizarCacheLocal(id, unaMas);
 
   marcarAsistenciaAPI(id)
-    .then(() => {
+    .then((respuesta) => {
       isProcessing = false;
-      // Si entró, su pago está aprobado aunque el padrón dijera otra cosa.
+      // Si el servidor lo atendió, su pago está aprobado aunque el padrón
+      // dijera otra cosa.
       p.aprobado = true;
-      actualizarCacheLocal(id, ahoraStr);
-      showResult('success', p.nombre, p.evento || '', 'Asistencia registrada ✓', ahoraStr);
+
+      // El recuento que manda el servidor sustituye a la cuenta optimista: es
+      // el bueno, también cuando otro teléfono le pasó lista hace un rato y
+      // este padrón no lo sabía.
+      const total = respuesta.asistencias ?? unaMas.asistencias;
+      const ultima = respuesta.ultima_asistencia ?? unaMas.ultima;
+      actualizarCacheLocal(id, {
+        asistencias: total,
+        ultima,
+        asistencia: formatearFecha(ultima) ?? ahoraStr,
+      });
+
+      // `duplicado` es la espera, no un error: el escaneo llegó antes de que
+      // tocara y no se anotó nada. El Worker lo contesta con un 200 y con el
+      // mensaje ya redactado, que es el que se enseña.
+      if (respuesta.duplicado) {
+        showResult(
+          'already',
+          p.nombre,
+          p.evento || '',
+          respuesta.mensaje ?? 'Ya se le pasó lista hace poco: esta no se contó.',
+          formatearFecha(ultima) ?? ''
+        );
+        return;
+      }
+
+      showResult(
+        'success',
+        p.nombre,
+        p.evento || '',
+        total > 1 ? `Asistencia ${total} registrada ✓` : 'Asistencia registrada ✓',
+        ahoraStr
+      );
     })
     .catch((err) => {
       isProcessing = false;
@@ -561,7 +636,7 @@ function registrarAsistencia(id: string, p: Participante) {
       }
 
       // No se registró, así que la marca optimista de la caché se deshace.
-      actualizarCacheLocal(id, asistenciaPrevia);
+      actualizarCacheLocal(id, estadoPrevio);
 
       if (fallo.esSesionInvalida) {
         volverAlPin('Tu sesión expiró. Vuelve a introducir el PIN.');
@@ -578,10 +653,17 @@ function registrarAsistencia(id: string, p: Participante) {
     });
 }
 
-function actualizarCacheLocal(id: string, valorAsistencia: string | null) {
-  const cacheItem = participantesCache.find(x => x.id === id);
+/**
+ * Cambia en la caché local lo que se sabe de una persona.
+ *
+ * Recibe los campos juntos porque el recuento son tres —cuántas, la última y la
+ * última formateada— y tienen que moverse a la vez: una cuenta subida sin su
+ * fecha dejaría el botón del detalle apagado o encendido al revés.
+ */
+function actualizarCacheLocal(id: string, cambios: Partial<Participante>) {
+  const cacheItem = participantesCache.find((x) => x.id === id);
   if (cacheItem) {
-    cacheItem.asistencia = valorAsistencia;
+    Object.assign(cacheItem, cambios);
   }
   if ($tabSearch.classList.contains('active') && $searchInput.value.trim().length >= 2) {
     onSearchInput();
