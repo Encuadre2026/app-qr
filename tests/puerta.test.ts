@@ -1,36 +1,106 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { decidirEscaneo, estaAprobado } from '../src/puerta';
+import {
+  decidirEscaneo,
+  dentroDeLaEspera,
+  estaAprobado,
+  MINUTOS_ENTRE_ASISTENCIAS,
+  minutosDeEspera,
+  minutosQueFaltan,
+} from '../src/puerta';
 import { addToOfflineQueue, getOfflineQueue, syncOfflineQueue } from '../src/api';
-import { desdeLaApi, formatearFecha } from '../src/utils';
+import { desdeLaApi, expresarMinutos, formatearFecha } from '../src/utils';
 
 /**
- * La puerta: quién entra, y qué se hace sin red.
+ * La puerta: quién entra, cuántas veces cuenta y qué se hace sin red.
  *
  * Hasta octubre de 2026 la app daba por buena a cualquiera del padrón, y en el
  * padrón está todo el que se pre-registró, haya pagado o no. El QR solo lleva
  * el id, que se conoce desde el alta.
+ *
+ * Y la asistencia era un sí o no: la app decidía aquí mismo que alguien «ya
+ * estaba registrado» y no llamaba al Worker, así que cuando la constancia pasó a
+ * entregarse por un mínimo de asistencias, una segunda era imposible desde la
+ * app por mucho que el Worker la admitiera.
  */
 
+/** Una fecha como las manda la API, situada hace tantos minutos. */
+function haceMinutos(minutos: number): string {
+  return new Date(Date.now() - minutos * 60000).toISOString().replace('T', ' ').substring(0, 19);
+}
+
 describe('decidirEscaneo', () => {
-  it('quien ya entró no se vuelve a preguntar', () => {
-    expect(decidirEscaneo({ aprobado: true, asistencia: '29/10/2026 09:00' }, true)).toBe(
+  it('con red decide el servidor, incluso para quien ya tiene asistencias', () => {
+    // Quien sabe cuánta espera queda —y si otro teléfono acaba de pasarle
+    // lista— es el Worker.
+    expect(decidirEscaneo({ aprobado: true, ultima: haceMinutos(1) }, true)).toBe('preguntar');
+    expect(decidirEscaneo({ aprobado: true, ultima: null }, true)).toBe('preguntar');
+    // También para quien el padrón da por pendiente: la organización puede
+    // haberlo aprobado hace un minuto en la mesa de registro.
+    expect(decidirEscaneo({ aprobado: false, ultima: null }, true)).toBe('preguntar');
+  });
+
+  it('sin red y dentro de la espera, el escaneo no cuenta y no se encola', () => {
+    // Encolarlo solo serviría para decirle al personal «guardado» de algo que
+    // el servidor va a descartar cuando vuelva la red.
+    expect(decidirEscaneo({ aprobado: true, ultima: haceMinutos(10) }, false, 240)).toBe(
       'ya-registrado'
     );
   });
 
-  it('con red decide el servidor, también para quien el padrón da por pendiente', () => {
-    // La organización puede haberlo aprobado hace un minuto en la mesa de
-    // registro, y el padrón del teléfono todavía no lo sabe.
-    expect(decidirEscaneo({ aprobado: true, asistencia: null }, true)).toBe('preguntar');
-    expect(decidirEscaneo({ aprobado: false, asistencia: null }, true)).toBe('preguntar');
+  it('sin red y pasada la espera, se encola como cualquier otra', () => {
+    expect(decidirEscaneo({ aprobado: true, ultima: haceMinutos(241) }, false, 240)).toBe('encolar');
   });
 
-  it('sin red, a quien se sabe aprobado se le encola', () => {
-    expect(decidirEscaneo({ aprobado: true, asistencia: null }, false)).toBe('encolar');
+  it('sin red, a quien se sabe aprobado y no ha entrado se le encola', () => {
+    expect(decidirEscaneo({ aprobado: true, ultima: null }, false)).toBe('encolar');
   });
 
   it('sin red, a quien no está aprobado no se le deja pasar ni se le encola', () => {
-    expect(decidirEscaneo({ aprobado: false, asistencia: null }, false)).toBe('pendiente-sin-red');
+    expect(decidirEscaneo({ aprobado: false, ultima: null }, false)).toBe('pendiente-sin-red');
+  });
+
+  it('sin red, la espera se mira antes del pago, igual que en el Worker', () => {
+    // A quien ya está dentro no se le manda a la mesa de registro.
+    expect(decidirEscaneo({ aprobado: false, ultima: haceMinutos(10) }, false, 240)).toBe(
+      'ya-registrado'
+    );
+  });
+});
+
+describe('la espera entre dos asistencias', () => {
+  it('la dice el padrón, para poder cambiarla sin desplegar la app', () => {
+    expect(minutosDeEspera(90)).toBe(90);
+    expect(minutosDeEspera(0)).toBe(0);
+  });
+
+  it('sin el campo —un Worker anterior— se usa la de por defecto', () => {
+    expect(minutosDeEspera(undefined)).toBe(MINUTOS_ENTRE_ASISTENCIAS);
+    expect(minutosDeEspera('cuatro horas')).toBe(MINUTOS_ENTRE_ASISTENCIAS);
+    expect(minutosDeEspera(-5)).toBe(MINUTOS_ENTRE_ASISTENCIAS);
+  });
+
+  it('cuenta los minutos que faltan redondeando hacia arriba', () => {
+    const ahora = Date.parse('2026-10-29T15:00:00Z');
+    expect(minutosQueFaltan('2026-10-29 14:00:00', 240, ahora)).toBe(180);
+    expect(minutosQueFaltan('2026-10-29 10:59:00', 240, ahora)).toBe(0);
+    expect(minutosQueFaltan(null, 240, ahora)).toBe(0);
+  });
+
+  it('en 0 no hay espera: todo escaneo cuenta', () => {
+    const ahora = Date.parse('2026-10-29T15:00:00Z');
+    expect(dentroDeLaEspera('2026-10-29 14:59:00', 0, ahora)).toBe(false);
+  });
+
+  it('una fecha ilegible no deja a nadie en la puerta', () => {
+    expect(dentroDeLaEspera('no es una fecha', 240)).toBe(false);
+  });
+
+  it('la frase de cuánto falta se lee igual que la del Worker', () => {
+    expect(expresarMinutos(45)).toBe('45 minutos');
+    expect(expresarMinutos(60)).toBe('1 hora');
+    expect(expresarMinutos(230)).toBe('3 horas y 50 minutos');
+    // Nunca «0 minutos», que se leería como «ya puedes».
+    expect(expresarMinutos(0)).toBe('1 minuto');
   });
 });
 

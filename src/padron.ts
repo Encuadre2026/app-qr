@@ -1,5 +1,5 @@
 /**
- * Cuándo se vuelve a pedir el padrón.
+ * El padrón: cómo se lee cada fila y cuándo se vuelve a pedir.
  *
  * La app lo cargaba una sola vez, al teclear el PIN, y la sesión dura doce
  * horas. Todo lo que cambiara después no llegaba al teléfono hasta volver a
@@ -7,6 +7,37 @@
  * —peor— quien se inscribía después, por ejemplo en un taller recién
  * agregado, salía «no encontrado» en la puerta aunque su registro existiera.
  */
+
+import { estaAprobado } from './puerta';
+import { Participante, RegistroAPI } from './types';
+import { formatearFecha } from './utils';
+
+/**
+ * Una fila del padrón de la API, como la guarda la app.
+ *
+ * Vive aquí, fuera de `main.ts`, por lo mismo que `decidirEscaneo`: para poder
+ * probar sin DOM lo que la app entiende de cada respuesta. Y hay dos respuestas
+ * que entender mientras el Worker se despliega: la que trae el recuento de
+ * asistencias y la anterior, que solo traía la marca de haber entrado.
+ */
+export function participanteDesdeLaApi(reg: RegistroAPI): Participante {
+  // Si el recuento no viene —un Worker anterior a octubre de 2026—, se deduce
+  // de lo que sí: la marca vale por una asistencia y su fecha por la última.
+  const ultima = reg.ultima_asistencia ?? (reg.asistio ? reg.fecha_asistencia : null);
+  return {
+    id: reg.id_participante,
+    nombre: reg.nombre,
+    evento: reg.taller,
+    institucion: reg.institucion,
+    perfil: reg.perfil,
+    aprobado: estaAprobado(reg.pago_aprobado),
+    // `formatearFecha` devuelve null si la fecha no se puede leer, y quien ya
+    // entró tiene que seguir constando como dentro aunque sea sin hora.
+    asistencia: ultima ? (formatearFecha(ultima) ?? 'sí') : null,
+    asistencias: reg.asistencias ?? (reg.asistio ? 1 : 0),
+    ultima,
+  };
+}
 
 /**
  * Lo mínimo entre dos recargas al volver a la app.

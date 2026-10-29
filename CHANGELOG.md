@@ -5,6 +5,24 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Añadido
+
+- **Se le puede pasar lista a la misma persona varias veces.** La constancia se
+  entrega a quien acumule un mínimo de asistencias, así que la puerta ya no
+  marca un sí o no: cuenta. La lista enseña la cuenta en su insignia («✓ 2»), la
+  ficha dice cuántas veces lleva y cuándo fue la última, y el botón de marcar ya
+  no se apaga para siempre.
+- **Con red se le pregunta siempre al Worker**, también por quien ya tiene
+  asistencias. Antes la app decidía por su cuenta que «ya estaba registrado» y
+  no llegaba a llamarlo: con varias asistencias por persona, eso hacía imposible
+  la segunda por mucho que el Worker la admitiera.
+- **Entre dos asistencias de la misma persona tiene que pasar un rato** —cuatro
+  horas, o lo que diga `minutos_entre_asistencias` del padrón—. Es lo que impide
+  que escanear tres veces el mismo código en la misma mesa regale una
+  constancia. La aplica el Worker; la app la conoce para dos cosas: dejar el
+  botón apagado mientras dure, y avisar sin conexión de que ese escaneo no va a
+  contar, en vez de encolarlo para que el servidor lo descarte más tarde.
+
 ### Seguridad
 
 - **Solo entra quien tiene el pago aprobado.** La app daba por buena a cualquiera
